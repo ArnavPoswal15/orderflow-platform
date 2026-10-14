@@ -1,0 +1,11 @@
+**/.git
+**/.idea
+**/.cursor
+**/target
+reference/
+web/
+docs/
+loadtest/
+observability/
+*.md
+.DS_Store

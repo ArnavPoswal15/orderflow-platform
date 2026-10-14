@@ -1,0 +1,66 @@
+---
+description: Event-driven order platform - stack, invariants, working rules
+alwaysApply: true
+---
+
+# Event-Driven Order Platform: project rules
+
+## Project
+Microservice order platform. Read `README.md` (mental map), `docs/01-requirements.md`,
+`docs/02-architecture.md` before writing code. `docs/03-phases.md` defines the build order.
+
+## Stack (fixed, do not substitute)
+- Java 21, Spring Boot 3.5.x (latest supported 3.x; confirm current version at start of Phase 1), Maven multi-module, Spring Web, Spring Data JPA, Flyway, Spring Kafka, Spring Data Redis, Actuator
+- Kafka (KRaft mode, no ZooKeeper), PostgreSQL 16, Redis 7
+- Next.js 14+ (App Router, TypeScript) + Tailwind in `web/`
+- Tests: JUnit 5, Testcontainers (Postgres, Kafka, Redis), Awaitility. Load: k6. CI: GitHub Actions
+- Everything runs via `docker compose up`
+
+## Reference code
+`reference/node-prototype/` is an earlier Node version, read-only. Look at it for behavior, never modify or build it.
+
+## Phase-wise implementation (mandatory)
+1. **One phase at a time.** Implement only the phase the user names (from `docs/03-phases.md`). Never start the next phase unless they explicitly ask.
+2. **Before coding:** Read `README.md`, `docs/01-requirements.md`, `docs/02-architecture.md`, the current phase in `docs/03-phases.md`, and the latest **complete** file under `docs/mental-maps/` (see `docs/mental-maps/README.md`). Summarize plan in <= 10 lines and list files to create/change.
+3. **After coding — verify yourself** (do not mark the phase done from intent alone):
+   - Run `./mvnw -q verify` when Java/tests exist for that phase.
+   - Run `docker compose up --build` when compose services for that phase exist; fix until the stack is healthy.
+   - Run every **Verify** step in `docs/03-phases.md` for that phase; record pass/fail in the phase mental map.
+   - If verification fails, fix and re-run until green or report a blocker with evidence (logs, test output).
+4. **Phase complete only when all are true:**
+   - Compiles; phase-scoped tests pass; compose works for what the phase adds.
+   - `docs/CHANGELOG.md` has an entry for the phase.
+   - `docs/mental-maps/phase-0N-….md` is written/updated (see below).
+   - User receives **exact commands** to reproduce verification by hand.
+5. **Mental map doc (required each phase):** Create or update the matching file in `docs/mental-maps/` (filename in `docs/mental-maps/README.md`). Follow `docs/mental-maps/TEMPLATE.md`. Content must reflect **implemented** code only: ASCII diagram, tables of modules/APIs/events/DB/Redis, happy path with real names, verify results you ran, key file paths, and explicit "not built yet" gaps. Set **Status: Complete** and date; update `docs/mental-maps/README.md` status column.
+6. If docs are ambiguous or wrong, say so and propose a fix. Don't silently deviate.
+7. Never invent performance numbers or benchmark results. Only report what a real run printed.
+
+## Architecture invariants (never violate)
+- Each service owns its database. No cross-service DB access or shared tables.
+- Services communicate ONLY via Kafka events (plus the public REST edge on order-service).
+- State change + outbox row are written in the **same DB transaction**. Never publish to Kafka inside business logic directly.
+- Every consumer is idempotent: check/insert `processed_events(event_id)` in the same transaction as its effect.
+- Kafka message key = `orderId` (preserves per-order ordering).
+- Stock decrement is a single atomic conditional UPDATE. No read-then-write.
+- Money is integer cents (`long`), never floating point.
+- Events are immutable, versioned, and use the shared envelope in `common-events`.
+- Only `common-events` is shared between services (event contracts), never entities or repositories.
+- `paymentToken` appears only on `order.created` and in payment-service’s DB — never on `inventory.reserved`.
+- Edge idempotency: write `idem:{key}` to Redis only **after** the order insert commits; DB `idempotency_key` UNIQUE is authoritative.
+- Cancel/charge race: payment-service handles cancel + late charge; order-service must not confirm a `CANCELLED` order on late `payment.succeeded`.
+
+## Conventions
+- Package root: `com.shop.<service>`; layers: `api`, `domain`, `messaging`, `persistence`
+- Structured JSON logs (logstash encoder) with `orderId`, `eventId`, `traceId` in MDC
+- Config via env vars with defaults in `application.yml`; no secrets in git
+- REST errors use RFC 7807 problem+json
+- Flyway migrations only; never `ddl-auto: update`
+- Small commits per logical step; conventional commit messages
+
+## Commands (keep these working)
+- `./mvnw -q verify`              # build + all tests
+- `docker compose up --build`     # full stack
+- `docker compose --profile elk up` # adds Elasticsearch/Kibana/Filebeat
+- `cd web && npm run dev`         # UI dev server
+- `k6 run loadtest/orders.js`
