@@ -51,6 +51,7 @@ Fail 3:  CONFIRMED ─▶ CANCELLED          (user cancels → refund + stock re
 | `docs/01-requirements.md` | What must be built, with acceptance criteria |
 | `docs/02-architecture.md` | How it works: services, events, data, APIs, decisions |
 | `docs/03-phases.md` | Build order + a ready-to-paste prompt for each phase |
+| `docs/mental-maps/` | Per-phase mental map of **what is implemented** (updated when each phase completes) |
 | `docs/04-interview-prep.md` | Talking points, likely questions, resume bullet templates |
 
 ## How to use with Cursor
