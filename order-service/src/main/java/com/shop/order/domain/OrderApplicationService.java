@@ -8,6 +8,10 @@ import com.shop.order.persistence.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,11 +49,25 @@ public class OrderApplicationService {
         return orderRepository.findById(id).map(this::toView);
     }
 
+    @Transactional(readOnly = true)
+    public OrderPageView listOrders(String status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<OrderEntity> result;
+        if (status != null && !status.isBlank()) {
+            result = orderRepository.findByStatus(status, pageable);
+        } else {
+            result = orderRepository.findAll(pageable);
+        }
+        List<OrderView> content = result.getContent().stream().map(this::toSummaryView).toList();
+        return new OrderPageView(content, page, size, result.getTotalElements());
+    }
+
     public CreateOrderResult createOrder(String idempotencyKey, String requestHash, List<LineRequest> lines, String paymentToken) {
         String cached = idempotencyService.getCachedOrderId(idempotencyKey);
         if (cached != null) {
-            return orderRepository.findById(UUID.fromString(cached))
-                    .map(o -> new CreateOrderResult(toView(o), true, false))
+            return orderRepository
+                    .findByIdempotencyKeyWithItems(idempotencyKey)
+                    .map(o -> new CreateOrderResult(toSummaryView(o), true, false))
                     .orElseGet(() -> createNew(idempotencyKey, requestHash, lines, paymentToken));
         }
         return createNew(idempotencyKey, requestHash, lines, paymentToken);
@@ -57,10 +75,10 @@ public class OrderApplicationService {
 
     private CreateOrderResult createNew(String idempotencyKey, String requestHash, List<LineRequest> lines, String paymentToken) {
         try {
-            OrderEntity created = orderCreator.create(idempotencyKey, requestHash, lines, paymentToken);
-            return new CreateOrderResult(toView(created), false, false);
+            OrderEntity created = orderCreator.createInNewTransaction(idempotencyKey, requestHash, lines, paymentToken);
+            return new CreateOrderResult(toSummaryView(created), false, false);
         } catch (DataIntegrityViolationException dup) {
-            Optional<OrderEntity> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
+            Optional<OrderEntity> existing = awaitExistingByIdempotencyKey(idempotencyKey);
             if (existing.isEmpty()) {
                 throw dup;
             }
@@ -69,8 +87,24 @@ public class OrderApplicationService {
                 return new CreateOrderResult(null, false, true);
             }
             idempotencyService.cacheAfterCommit(idempotencyKey, order.getId().toString());
-            return new CreateOrderResult(toView(order), true, false);
+            return new CreateOrderResult(toSummaryView(order), true, false);
         }
+    }
+
+    private Optional<OrderEntity> awaitExistingByIdempotencyKey(String idempotencyKey) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            Optional<OrderEntity> existing = orderRepository.findByIdempotencyKeyWithItems(idempotencyKey);
+            if (existing.isPresent()) {
+                return existing;
+            }
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return orderRepository.findByIdempotencyKeyWithItems(idempotencyKey);
     }
 
     @Transactional
@@ -92,6 +126,22 @@ public class OrderApplicationService {
         order.setStatus(OrderStatus.SHIPPED);
         order.setUpdatedAt(Instant.now());
         appendHistory(orderId, EventTypes.ORDER_SHIPPED, Map.of("from", from, "to", OrderStatus.SHIPPED));
+        var envelope = EventJson.newEnvelope(EventTypes.ORDER_SHIPPED, orderId, UUID.randomUUID(), Map.of());
+        outboxWriter.enqueue(envelope, EventTopics.ORDERS);
+        return toView(order);
+    }
+
+    @Transactional
+    public OrderView deliverOrder(UUID orderId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException(orderId));
+        String from = order.getStatus();
+        OrderStateMachine.assertTransition(from, OrderStatus.DELIVERED);
+        order.setStatus(OrderStatus.DELIVERED);
+        order.setUpdatedAt(Instant.now());
+        appendHistory(orderId, EventTypes.ORDER_DELIVERED, Map.of("from", from, "to", OrderStatus.DELIVERED));
+        var envelope = EventJson.newEnvelope(EventTypes.ORDER_DELIVERED, orderId, UUID.randomUUID(), Map.of());
+        outboxWriter.enqueue(envelope, EventTopics.ORDERS);
         return toView(order);
     }
 
@@ -150,6 +200,14 @@ public class OrderApplicationService {
 
     private OrderView toView(OrderEntity order) {
         List<OrderEventEntity> history = orderEventRepository.findByOrderIdOrderByIdAsc(order.getId());
+        return buildView(order, history);
+    }
+
+    private OrderView toSummaryView(OrderEntity order) {
+        return buildView(order, List.of());
+    }
+
+    private OrderView buildView(OrderEntity order, List<OrderEventEntity> history) {
         List<OrderView.Line> lines = order.getItems().stream()
                 .map(i -> new OrderView.Line(i.getSku(), i.getQty(), i.getUnitPriceCents()))
                 .toList();
@@ -185,6 +243,8 @@ public class OrderApplicationService {
     public record LineRequest(String sku, int qty) {}
 
     public record CreateOrderResult(OrderView order, boolean replay, boolean hashMismatch) {}
+
+    public record OrderPageView(List<OrderView> content, int page, int size, long totalElements) {}
 
     public static class BadRequestException extends RuntimeException {
         public BadRequestException(String message) {

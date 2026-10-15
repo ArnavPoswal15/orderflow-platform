@@ -21,3 +21,12 @@
 - REST: `POST /api/orders/{id}/cancel`, `POST /api/orders/{id}/ship`.
 - Kafka `DefaultErrorHandler`: exponential backoff (3 attempts) + `DeadLetterPublishingRecoverer` → `<topic>.DLT`.
 - `acceptance-tests` module: scenarios A1, A2, A4, A5, A6, A7 (A9 in `order-service` `OrderShipApiTest`); enable with `-Pacceptance`.
+
+## Phase 3 — Edge API (2026-10-15)
+- Redis sliding-window rate limit on `POST /api/orders` (`rl:{clientId}`, Lua script, 429 + `Retry-After` + `X-RateLimit-*`).
+- `GET /api/products` with `stock:{sku}` Redis cache (TTL 5s) and invalidation on inventory stock events.
+- `GET /api/orders` paginated list; `POST /api/orders/{id}/deliver`; ship/deliver enqueue `order.shipped` / `order.delivered` via outbox.
+- SSE: `SseHub` + `SseFeedKafkaConsumer` (`sse-feed-<instance>` group) → `GET /api/stream/events` and `/api/stream/orders/{id}`.
+- `GET /api/admin/stats` (orders by status, outbox backlog, DLT offset sums).
+- `ApiExceptionHandler` (RFC 7807 problem+json); inventory `GET /internal/products`.
+- Acceptance A3 (parallel idempotency) and A8 (rate-limit burst); hardened concurrent idempotency replay (`REQUIRES_NEW` create + fetch join).

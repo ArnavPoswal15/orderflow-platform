@@ -70,6 +70,14 @@ public class OrderController {
         }
     }
 
+    @GetMapping
+    public OrderApplicationService.OrderPageView list(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return orderService.listOrders(status, page, size);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<OrderView> get(@PathVariable UUID id) {
         return orderService.getOrder(id)
@@ -96,6 +104,20 @@ public class OrderController {
     public ResponseEntity<?> ship(@PathVariable UUID id) {
         try {
             OrderView view = orderService.shipOrder(id);
+            return ResponseEntity.accepted().body(view);
+        } catch (OrderApplicationService.NotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (OrderStateMachine.IllegalTransitionException e) {
+            ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+            pd.setDetail(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+        }
+    }
+
+    @PostMapping("/{id}/deliver")
+    public ResponseEntity<?> deliver(@PathVariable UUID id) {
+        try {
+            OrderView view = orderService.deliverOrder(id);
             return ResponseEntity.accepted().body(view);
         } catch (OrderApplicationService.NotFoundException e) {
             return ResponseEntity.notFound().build();
