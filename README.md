@@ -1,8 +1,10 @@
 # Order Platform
 
+[![CI](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml)
+
 Event-driven order platform for grocery-style orders: **order**, **inventory**, and **payment** services each own a database and coordinate through **Kafka** using a choreographed saga (no central orchestrator). A Next.js storefront in `web/` is the shop UI.
 
-**Status:** Phases 1–6 implemented (happy path through ops dashboard and local ELK observability). Phase 7 (k6, CI, polish) is not started.
+**Status:** Phases 1–7 complete (saga, storefront, ops, ELK observability, k6 proof load test, GitHub Actions CI, demo docs).
 
 ## Architecture
 
@@ -22,7 +24,8 @@ flowchart TB
   subgraph clients [Clients]
     direction TB
     WEB["Storefront\nNext.js :3000"]:::clients
-    API["HTTP clients\n(API & tests)"]:::clients
+    OPS["Ops dashboard\n/ops"]:::clients
+    API["HTTP clients\n(API, k6, tests)"]:::clients
   end
 
   subgraph edge [Edge / API Gateway]
@@ -49,6 +52,7 @@ flowchart TB
 
   %% Connections (spaced out, with labels kept short)
   WEB -->|same-origin /api| OS
+  OPS -->|/api/admin, SSE| OS
   API -->|HTTP| OS
   OS -->|writes| PG
   OS -->|cache| R
@@ -59,6 +63,18 @@ flowchart TB
 
   IS -->|reads/writes| PG
   PS -->|reads/writes| PG
+
+  subgraph observability [Observability optional profile elk]
+    direction LR
+    FB["Filebeat"]:::data
+    ES[("Elasticsearch")]:::data
+    KB["Kibana :5601"]:::edge
+    FB --> ES --> KB
+  end
+
+  OS -.->|JSON logs volume| FB
+  IS -.->|JSON logs volume| FB
+  PS -.->|JSON logs volume| FB
 
   %% Move patterns to the right in their own group so they don't cover nodes
   subgraph patterns [Core patterns]
@@ -73,6 +89,7 @@ flowchart TB
 
   %% Explicit node styles to enforce dark text (fixes light-text on light backgrounds)
   style WEB fill:#fff1f2,stroke:#b91c1c,color:#071133,font-size:14px
+  style OPS fill:#fff1f2,stroke:#b91c1c,color:#071133,font-size:14px
   style API fill:#fff1f2,stroke:#b91c1c,color:#071133,font-size:14px
   style OS  fill:#eef2ff,stroke:#3730a3,color:#071133,font-size:14px
   style K   fill:#f0fdf4,stroke:#166534,color:#071133,font-size:14px
@@ -84,7 +101,7 @@ flowchart TB
   style pattern2 fill:#f8fafc,stroke:#064e3b,color:#071133,font-size:13px
 
   %% Make sure cluster boxes are applied
-  class clients,edge,backbone,services,data cluster;
+  class clients,edge,backbone,services,data,observability cluster;
 ```
 
 **Core patterns:** transactional outbox (state + event in one DB transaction), idempotent consumers (`processed_events`), per-order Kafka keys, atomic stock updates, and compensation events (`inventory` compensation on failure).
@@ -111,8 +128,11 @@ docker compose up --build
 # Optional ELK (~4GB extra RAM) — observability/README.md; Kibana http://localhost:5601, Discover shop-logs*, orderId: "<uuid>"
 docker compose --profile elk up --build
 
-# Acceptance scenarios A1–A7 (Docker; forks JVM services)
+# Acceptance scenarios A1–A9 (Docker; forks JVM services)
 ./mvnw -pl acceptance-tests -Pacceptance test
+
+# Load test — stack must be up; unique X-Forwarded-For per VU avoids rate limit
+k6 run loadtest/orders.js
 
 # Storefront dev server (order-service on localhost:8080)
 cd web && npm run dev
@@ -136,6 +156,33 @@ The browser calls same-origin `/api`. REST (`/api/products`, `/api/orders`) is r
 - `GET /api/orders` and `GET /api/orders/{id}`
 - `POST /api/orders/{id}/cancel`
 - `GET /api/stream/orders/{id}` — SSE for one order
+- Ops UI at `/ops` (flash sale, failure-rate slider, live feed); admin APIs under `/api/admin/*`
+
+## Load testing
+
+With `docker compose up --build` healthy, run `k6 run loadtest/orders.js`. The script sets payment failure rate to 0%, resets **LASTITEM** stock, fires concurrent orders (default 50 VUs), then asserts **no oversell** (`available >= 0`, confirmed count delta ≤ initial stock). Each VU uses `X-Forwarded-For: 10.0.<vu>.0` so the edge rate limiter does not dominate the race.
+
+Record your machine’s numbers in [docs/benchmarks.md](docs/benchmarks.md) (template only in git—do not commit invented figures). See [loadtest/README.md](loadtest/README.md).
+
+## CI
+
+GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on push/PR to `main`: JDK 21 (Temurin), Docker available for Testcontainers, `./mvnw -q verify`. Acceptance tests stay behind `-Pacceptance` (same as local default verify).
+
+## Demo
+
+Timed walkthrough: [docs/DEMO.md](docs/DEMO.md) (~3 minutes: happy path, `fail` token, flash sale, optional k6/ELK mention).
+
+### Screenshots (add files under `docs/assets/`)
+
+![Storefront product grid](docs/assets/storefront.png)
+
+![Order timeline SSE](docs/assets/order-timeline.png)
+
+![Ops flash sale result](docs/assets/ops-flash-sale.png)
+
+![Kibana trace by orderId](docs/assets/kibana-trace.png)
+
+Capture instructions: [docs/assets/README.md](docs/assets/README.md).
 
 ## Repository layout
 
@@ -146,8 +193,13 @@ The browser calls same-origin `/api`. REST (`/api/products`, `/api/orders`) is r
 | `inventory-service/` | Stock and reservations |
 | `payment-service/` | Simulated gateway, charges and refunds |
 | `acceptance-tests/` | End-to-end scenarios (profile `acceptance`) |
-| `web/` | Next.js storefront (shop, cart, checkout, live order page) |
+| `loadtest/` | k6 race script (`orders.js`) and oversell checks |
+| `.github/workflows/` | CI (`./mvnw verify`) |
+| `web/` | Next.js storefront (shop, cart, checkout, live order page, `/ops`) |
 | `observability/` | ELK config, Kibana dashboard export, operator docs |
+| `docs/benchmarks.md` | Paste real k6 output from your runs |
+| `docs/DEMO.md` | 3-minute demo script |
+| `docs/assets/` | Screenshot placeholders for README |
 | `docs/` | Requirements, architecture, phased build plan |
 | `reference/node-prototype/` | Earlier Node reference (read-only) |
 
@@ -159,4 +211,6 @@ The browser calls same-origin `/api`. REST (`/api/products`, `/api/orders`) is r
 | [docs/02-architecture.md](docs/02-architecture.md) | Services, events, data model, invariants |
 | [docs/03-phases.md](docs/03-phases.md) | Implementation phases and verify steps |
 | [docs/mental-maps/](docs/mental-maps/) | What is implemented after each phase |
+| [docs/benchmarks.md](docs/benchmarks.md) | Load test results template |
+| [docs/DEMO.md](docs/DEMO.md) | Live demo script |
 | [docs/Frontend-guidelines.md](docs/Frontend-guidelines.md) | Next.js storefront conventions (`web/`) |

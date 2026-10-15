@@ -10,7 +10,7 @@ These files describe **what is actually in the repository** after each build pha
 | 4 | [phase-04-storefront.md](./phase-04-storefront.md) | Complete |
 | 5 | [phase-05-ops-dashboard.md](./phase-05-ops-dashboard.md) | Complete |
 | 6 | [phase-06-observability.md](./phase-06-observability.md) | Complete |
-| 7 | [phase-07-proof-polish.md](./phase-07-proof-polish.md) | Not started |
+| 7 | [phase-07-proof-polish.md](./phase-07-proof-polish.md) | Complete (2026-10-16) |
 
 **Template:** every completed phase must follow all sections in [TEMPLATE.md](./TEMPLATE.md) (including **Events** and **Architecture contracts** tables where relevant). Update this README status column when done.
 

@@ -24,7 +24,8 @@ class AcceptanceA1Test extends AcceptanceTestBase {
         for (int i = 0; i < 50; i++) {
             int idx = i;
             futures.add(pool.submit(() -> {
-                JsonNode node = client.createOrder("LASTITEM", 1, "ok", "a1-" + idx + "-" + UUID.randomUUID());
+                JsonNode node = client.createOrder(
+                        "LASTITEM", 1, "ok", "a1-" + idx + "-" + UUID.randomUUID(), "10.0." + idx + ".0");
                 return UUID.fromString(node.get("id").asText());
             }));
         }
