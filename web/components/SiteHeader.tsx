@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCart } from "@/lib/cart";
+import { CartCount } from "@/components/CartCount";
 
 const LINKS = [
   { href: "/", label: "Shop" },
   { href: "/cart", label: "Cart" },
   { href: "/orders", label: "Orders" },
+  { href: "/ops", label: "Ops" },
 ];
 
 function isActive(href: string, pathname: string): boolean {
@@ -17,7 +18,6 @@ function isActive(href: string, pathname: string): boolean {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const { count } = useCart();
 
   return (
     <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur">
@@ -41,15 +41,7 @@ export function SiteHeader() {
                 }`}
               >
                 {link.label}
-                {link.href === "/cart" && count > 0 ? (
-                  <span
-                    className={`ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs tabular-nums ${
-                      active ? "bg-white text-zinc-900" : "bg-zinc-900 text-white"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                ) : null}
+                {link.href === "/cart" ? <CartCount active={active} /> : null}
               </Link>
             );
           })}

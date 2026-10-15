@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { OrdersList } from "@/components/OrdersList";
+import { OrdersListSkeleton } from "@/components/OrdersListSkeleton";
 import { PageHeader } from "@/components/PageHeader";
 import { ProblemAlert } from "@/components/ProblemAlert";
 import { ApiProblem } from "@/lib/api";
@@ -15,7 +16,7 @@ export default function OrdersPage() {
   return (
     <>
       <PageHeader title="Orders" description="Recent orders, newest first." />
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading orders…</p>}>
+      <Suspense fallback={<OrdersListSkeleton />}>
         <OrdersLoader />
       </Suspense>
     </>

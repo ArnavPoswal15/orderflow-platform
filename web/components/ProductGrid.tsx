@@ -66,6 +66,7 @@ export function ProductGrid({ initialProducts }: { initialProducts: ProductView[
         {products.map((product) => {
           const inCart = lines.find((line) => line.sku === product.sku)?.qty ?? 0;
           const soldOut = product.available === 0;
+          const atStock = !soldOut && inCart >= product.available;
           return (
             <li
               key={product.sku}
@@ -84,11 +85,11 @@ export function ProductGrid({ initialProducts }: { initialProducts: ProductView[
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  disabled={soldOut}
+                  disabled={soldOut || atStock}
                   onClick={() => addItem(product)}
                   className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
                 >
-                  Add to cart
+                  {atStock ? "All in cart" : "Add to cart"}
                 </button>
                 {inCart > 0 ? (
                   <span className="text-xs text-zinc-500">In cart: {inCart}</span>

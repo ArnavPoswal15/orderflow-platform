@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { OrderDetailSkeleton } from "@/components/OrderDetailSkeleton";
 import { OrderLivePanel } from "@/components/OrderLivePanel";
+import { OrdersBackLink } from "@/components/OrdersBackLink";
 import { PageHeader } from "@/components/PageHeader";
 import { ProblemAlert } from "@/components/ProblemAlert";
 import { ApiProblem } from "@/lib/api";
@@ -14,7 +16,7 @@ export const metadata = {
 
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<p className="text-sm text-zinc-500">Loading order…</p>}>
+    <Suspense fallback={<OrderDetailSkeleton />}>
       <OrderDetail params={params} />
     </Suspense>
   );
@@ -27,6 +29,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (loaded.problem) {
     return (
       <>
+        <OrdersBackLink />
         <PageHeader title="Order" description={id} />
         <ProblemAlert problem={loaded.problem} />
       </>
@@ -35,6 +38,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!loaded.order) notFound();
   return (
     <>
+      <OrdersBackLink />
       <PageHeader title="Order" description={loaded.order.id} />
       <OrderLivePanel key={loaded.order.id} initial={loaded.order} />
     </>

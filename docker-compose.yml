@@ -101,6 +101,7 @@ services:
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INVENTORY_SERVICE_URL: http://inventory-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:8082
       SERVER_PORT: 8080
     ports:
       - "8080:8080"
@@ -112,6 +113,8 @@ services:
       kafka:
         condition: service_healthy
       inventory-service:
+        condition: service_started
+      payment-service:
         condition: service_started
 
   web:

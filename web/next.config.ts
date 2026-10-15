@@ -6,6 +6,7 @@ const orderServiceUrl = (
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   // Gzip compression buffers small chunks. SSE needs them flushed immediately.
@@ -29,6 +30,8 @@ const nextConfig: NextConfig = {
       { source: "/api/products", destination: `${orderServiceUrl}/api/products` },
       { source: "/api/orders", destination: `${orderServiceUrl}/api/orders` },
       { source: "/api/orders/:path*", destination: `${orderServiceUrl}/api/orders/:path*` },
+      { source: "/api/admin", destination: `${orderServiceUrl}/api/admin` },
+      { source: "/api/admin/:path*", destination: `${orderServiceUrl}/api/admin/:path*` },
     ];
   },
 };
