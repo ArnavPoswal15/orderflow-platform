@@ -14,3 +14,10 @@
 - Transactional outbox + idempotent consumers (`processed_events`) in all three services.
 - Payment: token/amount on `order.created`; charge on `inventory.reserved`; `cancel_requested` column on `payments`.
 - Order edge: `Idempotency-Key` required; Redis `idem:{key}` after DB commit; internal price lookup via `inventory-service` `GET /internal/skus`.
+
+## Phase 2 — Failure paths + reliability (2026-10-15)
+- Saga failures: `inventory.rejected`, `payment.failed` → stock release (`inventory.released`), cancel/refund (`order.cancelled`, `payment.refunded`).
+- Order state machine (`OrderStateMachine`) with guarded Kafka transitions and REST `409` on illegal commands.
+- REST: `POST /api/orders/{id}/cancel`, `POST /api/orders/{id}/ship`.
+- Kafka `DefaultErrorHandler`: exponential backoff (3 attempts) + `DeadLetterPublishingRecoverer` → `<topic>.DLT`.
+- `acceptance-tests` module: scenarios A1, A2, A4, A5, A6, A7 (A9 in `order-service` `OrderShipApiTest`); enable with `-Pacceptance`.

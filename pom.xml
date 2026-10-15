@@ -22,6 +22,7 @@
         <module>order-service</module>
         <module>inventory-service</module>
         <module>payment-service</module>
+        <module>acceptance-tests</module>
     </modules>
 
     <properties>
@@ -37,6 +38,21 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.shop</groupId>
+                <artifactId>order-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.shop</groupId>
+                <artifactId>inventory-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.shop</groupId>
+                <artifactId>payment-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>${testcontainers.version}</version>
@@ -47,6 +63,15 @@
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>

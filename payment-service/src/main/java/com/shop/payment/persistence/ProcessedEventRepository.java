@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface ProcessedEventRepository extends JpaRepository<ProcessedEventEntity, UUID> {
 
-    @Modifying
+    @Modifying(clearAutomatically = false)
     @Query(value = """
             INSERT INTO processed_events (event_id, processed_at) VALUES (:eventId, :at)
             ON CONFLICT (event_id) DO NOTHING

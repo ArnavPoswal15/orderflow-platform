@@ -11,6 +11,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(properties = {
         "spring.kafka.listener.auto-startup=false",
+        "outbox.enabled=false",
+        "shop.kafka.listeners.enabled=false",
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
 })
 class PaymentServiceApplicationTests {

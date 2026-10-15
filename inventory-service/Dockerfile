@@ -9,6 +9,6 @@ RUN mvn -q -pl inventory-service -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /build/inventory-service/target/inventory-service-*.jar app.jar
+COPY --from=build /build/inventory-service/target/inventory-service-*-boot.jar app.jar
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]

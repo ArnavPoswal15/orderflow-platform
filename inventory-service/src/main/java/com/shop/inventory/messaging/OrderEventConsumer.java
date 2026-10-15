@@ -5,6 +5,7 @@ import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
 import com.shop.events.payload.OrderCreatedPayload;
+import com.shop.inventory.domain.ReleaseService;
 import com.shop.inventory.domain.ReservationService;
 import com.shop.inventory.persistence.ProcessedEventRepository;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -19,19 +20,23 @@ public class OrderEventConsumer {
 
     private final ProcessedEventRepository processedEventRepository;
     private final ReservationService reservationService;
+    private final ReleaseService releaseService;
 
     public OrderEventConsumer(
             ProcessedEventRepository processedEventRepository,
-            ReservationService reservationService) {
+            ReservationService reservationService,
+            ReleaseService releaseService) {
         this.processedEventRepository = processedEventRepository;
         this.reservationService = reservationService;
+        this.releaseService = releaseService;
     }
 
     @KafkaListener(topics = EventTopics.ORDERS, groupId = "inventory-service")
     @Transactional
     public void onOrderEvent(String raw, Acknowledgment ack) {
         EventEnvelope envelope = EventJson.deserialize(raw);
-        if (!EventTypes.ORDER_CREATED.equals(envelope.type())) {
+        String type = envelope.type();
+        if (!EventTypes.ORDER_CREATED.equals(type) && !EventTypes.ORDER_CANCELLED.equals(type)) {
             ack.acknowledge();
             return;
         }
@@ -39,8 +44,12 @@ public class OrderEventConsumer {
             ack.acknowledge();
             return;
         }
-        OrderCreatedPayload payload = EventJson.mapper().convertValue(envelope.payload(), OrderCreatedPayload.class);
-        reservationService.handleOrderCreated(envelope.orderId(), payload);
+        if (EventTypes.ORDER_CREATED.equals(type)) {
+            OrderCreatedPayload payload = EventJson.mapper().convertValue(envelope.payload(), OrderCreatedPayload.class);
+            reservationService.handleOrderCreated(envelope.orderId(), payload);
+        } else {
+            releaseService.releaseForOrder(envelope.orderId());
+        }
         ack.acknowledge();
     }
 }

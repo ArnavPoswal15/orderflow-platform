@@ -5,5 +5,9 @@ public final class EventTopics {
     public static final String INVENTORY = "inventory.events";
     public static final String PAYMENTS = "payments.events";
 
+    public static String dlt(String topic) {
+        return topic + ".DLT";
+    }
+
     private EventTopics() {}
 }
