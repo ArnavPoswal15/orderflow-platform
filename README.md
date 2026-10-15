@@ -1,85 +1,93 @@
-# Event-Driven Order Platform (Java · Kafka · Postgres · Next.js)
+# Order Platform
 
-A grocery-style order system where **orders, inventory and payments are separate services that
-only talk through Kafka events**. It is built to show the hard parts of distributed backends:
-no overselling under concurrency, no lost or duplicated events, and automatic recovery when
-a step fails (saga compensation). A storefront and an ops dashboard make all of that visible live.
+Event-driven microservice backend for grocery-style orders: **order**, **inventory**, and **payment** services each own a database and coordinate through **Kafka** using a choreographed saga (no central orchestrator). The design targets correct stock under concurrency, at-least-once messaging without double effects, and explicit compensation when a step fails.
 
-> Decision note: Next.js and Vite are alternatives, so this spec uses **Next.js (App Router) + Tailwind**.
+**Status:** Phases 1–2 implemented (happy path + failure/cancel/refund). Storefront, SSE, and ops UI are planned in later phases.
 
----
+## Architecture
 
-## Mental map (read this first)
+```mermaid
+flowchart LR
+  subgraph clients [Clients]
+    API["HTTP clients / tests"]
+  end
 
-```
- BROWSER                 EDGE                     BACKBONE                SERVICES (own DB each)
-┌──────────────┐   ┌─────────────────┐      ┌───────────────┐       ┌──────────────────────┐
-│ Storefront   │   │ order-service   │      │    KAFKA      │       │ order-service        │
-│  cart/checkout│──▶│  REST + SSE     │─────▶│ orders.events │◀─────▶│  orders, outbox      │
-│ Ops dashboard│◀──│  rate limit     │      │ inventory.ev. │       ├──────────────────────┤
-│  live events │SSE│  idempotency key│      │ payments.ev.  │◀─────▶│ inventory-service    │
-└──────────────┘   └───────┬─────────┘      │ *.DLT (dead)  │       │  stock, reservations │
-                           │                └───────────────┘       ├──────────────────────┤
-                           ▼                                         │ payment-service      │
-                       ┌───────┐   Redis: rate limit, idempotency,   │  payments, refunds   │
-                       │ Redis │          stock read-cache           └──────────────────────┘
-                       └───────┘
-   Logs (JSON) ──▶ Filebeat ──▶ Elasticsearch ──▶ Kibana          Postgres: 1 container, 3 databases
-```
+  subgraph edge [Edge]
+    OS["order-service\nREST API"]
+  end
 
-### The five ideas everything hangs on
-1. **Choreographed saga**: no central brain. Each service reacts to events and emits new ones.
-2. **Transactional outbox**: a state change and its event are written in ONE DB transaction; a
-   publisher relays the outbox to Kafka. No "DB committed but event lost".
-3. **Idempotent consumers**: Kafka delivers at-least-once, so every handler records `eventId`
-   and ignores repeats.
-4. **Atomic stock decrement**: `UPDATE ... WHERE available >= qty` under a row lock. The loser fails cleanly.
-5. **Compensation**: if payment fails (or an order is cancelled after paying), stock is released / money refunded via events.
+  subgraph backbone [Messaging]
+    K["Kafka\norders · inventory · payments\n+ DLT topics"]
+  end
 
-### Order lifecycle
-```
-Happy:   PENDING ─▶ RESERVED ─▶ CONFIRMED ─▶ SHIPPED ─▶ DELIVERED
-Fail 1:  PENDING ─▶ CANCELLED            (inventory.rejected: out of stock)
-Fail 2:  PENDING ─▶ RESERVED ─▶ CANCELLED (payment.failed → stock released)
-Fail 3:  CONFIRMED ─▶ CANCELLED          (user cancels → refund + stock released)
+  subgraph services [Services]
+    IS["inventory-service"]
+    PS["payment-service"]
+  end
+
+  subgraph data [Data]
+    PG[("PostgreSQL\norders · inventory · payments")]
+    R[("Redis")]
+  end
+
+  API --> OS
+  OS --> PG
+  IS --> PG
+  PS --> PG
+  OS --> R
+  OS <-->|"publish / consume"| K
+  IS <-->|"publish / consume"| K
+  PS <-->|"publish / consume"| K
 ```
 
-## Docs
-| File | What it answers |
-|---|---|
-| `.cursor/rules/project.mdc` | Always-on rules for Cursor: stack, invariants, working rules |
-| `docs/01-requirements.md` | What must be built, with acceptance criteria |
-| `docs/02-architecture.md` | How it works: services, events, data, APIs, decisions |
-| `docs/03-phases.md` | Build order + a ready-to-paste prompt for each phase |
-| `docs/mental-maps/` | Per-phase mental map of **what is implemented** (updated when each phase completes) |
-| `docs/04-interview-prep.md` | Talking points, likely questions, resume bullet templates |
+**Core patterns:** transactional outbox (state + event in one DB transaction), idempotent consumers (`processed_events`), per-order Kafka keys, atomic stock updates, and compensation events (`inventory.rejected`, `payment.failed`, `payment.refunded`, `inventory.released`).
 
-## How to use with Cursor
-1. Create an empty repo folder and unzip this pack into it (keep the hidden `.cursor/` folder).
-2. Open the folder in Cursor. Check **Settings > Rules** shows `project` as an always-on rule.
-3. Open a new **Agent** chat. Paste **Phase 1's prompt** from `docs/03-phases.md`. Cursor will read the `@docs/...` files it names.
-4. Review the diff, run the verify steps, then start a **new chat** for the next phase.
-5. Never skip the verify step at the end of a phase. Understand it before moving on.
+| Happy path | `PENDING` → `RESERVED` → `CONFIRMED` |
+| Failure | OOS → `CANCELLED`; payment decline → `CANCELLED` + stock released |
+| Cancel | `POST /api/orders/{id}/cancel` → refund (if paid) + release stock |
 
-Tip: for a big phase, switch the chat to Plan mode first so the agent proposes a plan before editing.
+## Stack
 
-## Target repo layout
+Java 21 · Spring Boot 3 · Maven · Kafka (KRaft) · PostgreSQL 16 · Redis 7 · Flyway · Testcontainers
+
+## Quick start
+
+**Prerequisites:** Docker, JDK 21.
+
+```bash
+# Build and unit/integration tests
+./mvnw verify
+
+# Full stack (Kafka, Postgres, Redis, three services)
+docker compose up --build
+
+# Acceptance scenarios A1–A7 (Docker; forks JVM services)
+./mvnw -pl acceptance-tests -Pacceptance test
 ```
-order-platform/
-├── .cursor/rules/project.mdc     # agent rules
-├── docker-compose.yml            # kafka, postgres, redis, 3 services, web (+ elk profile)
-├── pom.xml                       # Maven parent (multi-module)
-├── common-events/                # event envelope + event record types (shared contract only)
-├── order-service/                # REST, SSE, rate limit, order state machine, outbox
-├── inventory-service/            # stock, reservations, outbox
-├── payment-service/              # simulated gateway, refunds, failure-rate config, outbox
-├── web/                          # Next.js storefront + /ops dashboard
-├── loadtest/                     # k6 scripts
-├── observability/                # filebeat.yml, kibana export
-├── reference/node-prototype/     # earlier Node version (read-only reference)
-└── docs/
-```
-# order-platform
-# order-platform
-# order-platform
-# order-platform
+
+**API (order-service, default port 8080):**
+
+- `POST /api/orders` — create order (`Idempotency-Key` header required; payment token `ok` or `fail`)
+- `GET /api/orders/{id}`
+- `POST /api/orders/{id}/cancel`
+
+## Repository layout
+
+| Path | Role |
+|------|------|
+| `common-events/` | Shared event envelope and payload types |
+| `order-service/` | Public REST API, order state, outbox |
+| `inventory-service/` | Stock and reservations |
+| `payment-service/` | Simulated gateway, charges and refunds |
+| `acceptance-tests/` | End-to-end scenarios (profile `acceptance`) |
+| `docs/` | Requirements, architecture, phased build plan |
+| `reference/node-prototype/` | Earlier Node reference (read-only) |
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [docs/01-requirements.md](docs/01-requirements.md) | Functional requirements and acceptance criteria |
+| [docs/02-architecture.md](docs/02-architecture.md) | Services, events, data model, invariants |
+| [docs/03-phases.md](docs/03-phases.md) | Implementation phases and verify steps |
+| [docs/mental-maps/](docs/mental-maps/) | What is implemented after each phase |
