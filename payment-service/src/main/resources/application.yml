@@ -31,10 +31,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 payment:
   failure-rate-percent: ${PAYMENT_FAILURE_RATE:0}
 
 outbox:
   poll-interval-ms: 200
+
+shop:
+  metrics:
+    initial-delay-ms: 120000
+    refresh-ms: 15000
+
+logging:
+  config: classpath:logback-spring.xml

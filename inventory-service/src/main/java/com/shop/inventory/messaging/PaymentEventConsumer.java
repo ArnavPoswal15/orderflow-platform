@@ -4,8 +4,11 @@ import com.shop.events.EventEnvelope;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.inventory.domain.ReleaseService;
 import com.shop.inventory.persistence.ProcessedEventRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -15,6 +18,8 @@ import java.time.Instant;
 
 @Component
 public class PaymentEventConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentEventConsumer.class);
 
     private final ProcessedEventRepository processedEventRepository;
     private final ReleaseService releaseService;
@@ -38,6 +43,8 @@ public class PaymentEventConsumer {
             ack.acknowledge();
             return;
         }
+        TraceContext.bind(envelope);
+        log.info("consumed");
         releaseService.releaseForOrder(envelope.orderId());
         ack.acknowledge();
     }

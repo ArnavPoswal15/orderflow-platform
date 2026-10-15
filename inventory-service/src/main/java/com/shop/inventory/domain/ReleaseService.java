@@ -3,6 +3,7 @@ package com.shop.inventory.domain;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.InventoryReleasedPayload;
 import com.shop.events.payload.OrderLineItem;
 import com.shop.inventory.persistence.*;
@@ -46,7 +47,7 @@ public class ReleaseService {
         var envelope = EventJson.newEnvelope(
                 EventTypes.INVENTORY_RELEASED,
                 orderId,
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new InventoryReleasedPayload(items));
         enqueue(envelope);
     }

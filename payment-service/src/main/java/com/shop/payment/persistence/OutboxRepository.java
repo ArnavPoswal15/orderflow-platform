@@ -18,4 +18,6 @@ public interface OutboxRepository extends JpaRepository<OutboxEntity, Long> {
     @Modifying
     @Query("UPDATE OutboxEntity o SET o.publishedAt = :at WHERE o.eventId = :eventId")
     int markPublished(UUID eventId, Instant at);
+
+    long countByPublishedAtIsNull();
 }

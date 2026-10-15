@@ -3,10 +3,12 @@ package com.shop.order.domain;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.OrderCancelledPayload;
 import com.shop.order.persistence.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -30,18 +33,21 @@ public class OrderApplicationService {
     private final IdempotencyService idempotencyService;
     private final OrderCreator orderCreator;
     private final OutboxWriter outboxWriter;
+    private final OrderMetrics orderMetrics;
 
     public OrderApplicationService(
             OrderRepository orderRepository,
             OrderEventRepository orderEventRepository,
             IdempotencyService idempotencyService,
             OrderCreator orderCreator,
-            OutboxWriter outboxWriter) {
+            OutboxWriter outboxWriter,
+            OrderMetrics orderMetrics) {
         this.orderRepository = orderRepository;
         this.orderEventRepository = orderEventRepository;
         this.idempotencyService = idempotencyService;
         this.orderCreator = orderCreator;
         this.outboxWriter = outboxWriter;
+        this.orderMetrics = orderMetrics;
     }
 
     @Transactional(readOnly = true)
@@ -126,8 +132,10 @@ public class OrderApplicationService {
         order.setStatus(OrderStatus.SHIPPED);
         order.setUpdatedAt(Instant.now());
         appendHistory(orderId, EventTypes.ORDER_SHIPPED, Map.of("from", from, "to", OrderStatus.SHIPPED));
-        var envelope = EventJson.newEnvelope(EventTypes.ORDER_SHIPPED, orderId, UUID.randomUUID(), Map.of());
+        var envelope = EventJson.newEnvelope(EventTypes.ORDER_SHIPPED, orderId, TraceContext.currentOrNew(), Map.of());
         outboxWriter.enqueue(envelope, EventTopics.ORDERS);
+        TraceContext.bind(envelope);
+        logOrderStatus(orderId, OrderStatus.SHIPPED, null);
         return toView(order);
     }
 
@@ -140,8 +148,10 @@ public class OrderApplicationService {
         order.setStatus(OrderStatus.DELIVERED);
         order.setUpdatedAt(Instant.now());
         appendHistory(orderId, EventTypes.ORDER_DELIVERED, Map.of("from", from, "to", OrderStatus.DELIVERED));
-        var envelope = EventJson.newEnvelope(EventTypes.ORDER_DELIVERED, orderId, UUID.randomUUID(), Map.of());
+        var envelope = EventJson.newEnvelope(EventTypes.ORDER_DELIVERED, orderId, TraceContext.currentOrNew(), Map.of());
         outboxWriter.enqueue(envelope, EventTopics.ORDERS);
+        TraceContext.bind(envelope);
+        logOrderStatus(orderId, OrderStatus.DELIVERED, null);
         return toView(order);
     }
 
@@ -171,6 +181,12 @@ public class OrderApplicationService {
         hist.put("from", from);
         hist.put("to", toStatus);
         appendHistory(orderId, eventType, hist);
+        Long latencyMs = null;
+        if (EventTypes.PAYMENT_SUCCEEDED.equals(eventType)) {
+            latencyMs = latencySinceCreated(order.getCreatedAt());
+        }
+        TraceContext.put(TraceContext.EVENT_TYPE, eventType);
+        logOrderStatus(orderId, toStatus, latencyMs);
     }
 
     private void applyCancelled(OrderEntity order, String from, String reason, String eventType) {
@@ -184,9 +200,30 @@ public class OrderApplicationService {
         var envelope = EventJson.newEnvelope(
                 EventTypes.ORDER_CANCELLED,
                 orderId,
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new OrderCancelledPayload(reason, paidBeforeCancel));
         outboxWriter.enqueue(envelope, EventTopics.ORDERS);
+        orderMetrics.orderCancelled();
+        TraceContext.bind(envelope);
+        logOrderStatus(orderId, OrderStatus.CANCELLED, null);
+    }
+
+    private void logOrderStatus(UUID orderId, String status, Long latencyMs) {
+        TraceContext.put(TraceContext.ORDER_ID, orderId.toString());
+        TraceContext.put(TraceContext.ORDER_STATUS, status);
+        if (latencyMs != null) {
+            TraceContext.put(TraceContext.LATENCY_MS, Long.toString(latencyMs));
+        } else {
+            MDC.remove(TraceContext.LATENCY_MS);
+        }
+        log.info("order status");
+    }
+
+    private static Long latencySinceCreated(Instant createdAt) {
+        if (createdAt == null) {
+            return null;
+        }
+        return Math.max(0L, Duration.between(createdAt, Instant.now()).toMillis());
     }
 
     private void appendHistory(UUID orderId, String type, Map<String, Object> data) {

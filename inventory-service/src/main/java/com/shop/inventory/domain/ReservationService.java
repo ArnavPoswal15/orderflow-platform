@@ -3,11 +3,14 @@ package com.shop.inventory.domain;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.InventoryRejectedPayload;
 import com.shop.events.payload.InventoryReservedPayload;
 import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.events.payload.OrderLineItem;
 import com.shop.inventory.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +20,8 @@ import java.util.*;
 
 @Service
 public class ReservationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
 
     private final InventoryRepository inventoryRepository;
     private final ReservationRepository reservationRepository;
@@ -55,9 +60,12 @@ public class ReservationService {
                 var envelope = EventJson.newEnvelope(
                         EventTypes.INVENTORY_REJECTED,
                         orderId,
-                        UUID.randomUUID(),
+                        TraceContext.currentOrNew(),
                         new InventoryRejectedPayload(line.sku(), "out_of_stock"));
                 enqueue(envelope);
+                TraceContext.bind(envelope);
+                TraceContext.putFailureReason(envelope);
+                log.info("inventory rejected");
                 return;
             }
             decremented.add(line);
@@ -76,7 +84,7 @@ public class ReservationService {
         var envelope = EventJson.newEnvelope(
                 EventTypes.INVENTORY_RESERVED,
                 orderId,
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new InventoryReservedPayload(payload.items()));
         enqueue(envelope);
     }

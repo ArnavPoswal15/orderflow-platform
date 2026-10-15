@@ -12,6 +12,13 @@ import com.shop.order.api.ratelimit.RateLimitProperties;
 public class WebMvcConfig {
 
     @Bean
+    FilterRegistrationBean<TraceIdFilter> traceIdFilterRegistration() {
+        FilterRegistrationBean<TraceIdFilter> registration = new FilterRegistrationBean<>(new TraceIdFilter());
+        registration.setOrder(0);
+        return registration;
+    }
+
+    @Bean
     FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setOrder(1);

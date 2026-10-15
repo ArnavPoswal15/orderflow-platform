@@ -31,7 +31,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 outbox:
   poll-interval-ms: 200
+
+shop:
+  metrics:
+    initial-delay-ms: 120000
+    refresh-ms: 15000
+
+logging:
+  config: classpath:logback-spring.xml

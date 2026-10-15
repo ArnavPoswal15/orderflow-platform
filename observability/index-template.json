@@ -1,0 +1,24 @@
+{
+  "index_patterns": ["shop-logs-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "text" },
+        "service": { "type": "keyword" },
+        "orderId": { "type": "keyword" },
+        "eventId": { "type": "keyword" },
+        "traceId": { "type": "keyword" },
+        "eventType": { "type": "keyword" },
+        "orderStatus": { "type": "keyword" },
+        "failureReason": { "type": "keyword" },
+        "latencyMs": { "type": "long" }
+      }
+    }
+  }
+}

@@ -4,10 +4,13 @@ import com.shop.events.EventEnvelope;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.inventory.domain.ReleaseService;
 import com.shop.inventory.domain.ReservationService;
 import com.shop.inventory.persistence.ProcessedEventRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -17,6 +20,8 @@ import java.time.Instant;
 
 @Component
 public class OrderEventConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
 
     private final ProcessedEventRepository processedEventRepository;
     private final ReservationService reservationService;
@@ -44,6 +49,8 @@ public class OrderEventConsumer {
             ack.acknowledge();
             return;
         }
+        TraceContext.bind(envelope);
+        log.info("consumed");
         if (EventTypes.ORDER_CREATED.equals(type)) {
             OrderCreatedPayload payload = EventJson.mapper().convertValue(envelope.payload(), OrderCreatedPayload.class);
             reservationService.handleOrderCreated(envelope.orderId(), payload);
