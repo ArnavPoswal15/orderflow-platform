@@ -113,3 +113,16 @@ services:
         condition: service_healthy
       inventory-service:
         condition: service_started
+
+  web:
+    build:
+      context: ./web
+      args:
+        ORDER_SERVICE_URL: http://order-service:8080
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      order-service:
+        condition: service_started

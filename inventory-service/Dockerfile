@@ -5,6 +5,7 @@ COPY common-events common-events
 COPY order-service order-service
 COPY inventory-service inventory-service
 COPY payment-service payment-service
+COPY acceptance-tests acceptance-tests
 RUN mvn -q -pl inventory-service -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre

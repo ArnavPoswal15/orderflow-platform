@@ -135,3 +135,4 @@ docker compose up --build
 | [docs/02-architecture.md](docs/02-architecture.md) | Services, events, data model, invariants |
 | [docs/03-phases.md](docs/03-phases.md) | Implementation phases and verify steps |
 | [docs/mental-maps/](docs/mental-maps/) | What is implemented after each phase |
+| [docs/Frontend-guidelines.md](docs/Frontend-guidelines.md) | Next.js storefront conventions (`web/`) |
