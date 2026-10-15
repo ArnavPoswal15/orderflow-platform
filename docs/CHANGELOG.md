@@ -30,3 +30,11 @@
 - `GET /api/admin/stats` (orders by status, outbox backlog, DLT offset sums).
 - `ApiExceptionHandler` (RFC 7807 problem+json); inventory `GET /internal/products`.
 - Acceptance A3 (parallel idempotency) and A8 (rate-limit burst); hardened concurrent idempotency replay (`REQUIRES_NEW` create + fetch join).
+
+## Phase 4 — Storefront (2026-10-15)
+- Next.js storefront in `web/` (App Router, TypeScript, Tailwind): `/`, `/cart`, `/checkout`, `/orders`, `/orders/[id]`. No `/ops`.
+- Browser calls same-origin `/api`. REST is rewritten to `ORDER_SERVICE_URL` (default `http://localhost:8080`). SSE `GET /api/stream/*` is a streaming route handler so the rewrite proxy does not buffer or cut the event stream at 30s.
+- Docker Compose `web` service on port 3000, build arg `ORDER_SERVICE_URL=http://order-service:8080`. Standalone image runs `node server.js`.
+- Service Dockerfiles also copy the `acceptance-tests` module so `docker compose up --build` can read the parent POM.
+- Checkout keeps one `Idempotency-Key` in `sessionStorage` (`shop.checkoutAttempt`) until the cart or payment token changes, and drops it only after a successful POST.
+- The order page reads SSE with `fetch` and refetches every 400ms while the status is `PENDING` or `RESERVED`, so `CONFIRMED` appears without waiting for a later event.

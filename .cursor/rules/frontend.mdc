@@ -1,0 +1,9 @@
+---
+description: Next.js/React storefront rules for web/
+globs: web/**
+alwaysApply: false
+---
+
+Follow `docs/Frontend-guidelines.md` for all changes in `web/`.
+
+Confirm Next.js/React versions and any unfamiliar APIs against current docs (`web/node_modules/next/dist/docs/`, `web/AGENTS.md`) before using them.
