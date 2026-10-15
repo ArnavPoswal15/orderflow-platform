@@ -7,29 +7,31 @@ Event-driven microservice backend for grocery-style orders: **order**, **invento
 ## Architecture
 
 ```mermaid
-flowchart LR
-  %% Node style defaults
-  classDef cluster fill:#f6f8ff,stroke:#3b82f6,stroke-width:2px,stroke-dasharray:0,rx:8,ry:8;
-  classDef service fill:#fff7ed,stroke:#fb923c,stroke-width:1.5px,rx:6,ry:6;
-  classDef data fill:#ecfeff,stroke:#06b6d4,stroke-width:1.5px,rx:6,ry:6;
-  classDef edge fill:#eef2ff,stroke:#6366f1,stroke-width:1.5px,rx:6,ry:6;
-  classDef msg fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px,rx:6,ry:6;
-  classDef clients fill:#fff1f2,stroke:#ef4444,stroke-width:1.5px,rx:6,ry:6;
+flowchart TB
+  %% Improved contrast + spacing to avoid overlap
+  %% Global class defs (explicit text color and font size for readability)
+  classDef cluster fill:#f8fafc,stroke:#0f172a,stroke-width:2px,rx:8,ry:8,color:#0f172a,font-size:14px;
+  classDef service fill:#fff7ed,stroke:#b45309,stroke-width:1.5px,rx:6,ry:6,color:#0f172a,font-size:14px;
+  classDef data fill:#ecfeff,stroke:#075985,stroke-width:1.5px,rx:6,ry:6,color:#0f172a,font-size:14px;
+  classDef edge fill:#eef2ff,stroke:#3730a3,stroke-width:1.5px,rx:6,ry:6,color:#0f172a,font-size:14px;
+  classDef msg fill:#f0fdf4,stroke:#166534,stroke-width:1.5px,rx:6,ry:6,color:#0f172a,font-size:14px;
+  classDef clients fill:#fff1f2,stroke:#b91c1c,stroke-width:1.5px,rx:6,ry:6,color:#0f172a,font-size:14px;
   linkStyle default stroke:#94a3b8,stroke-width:1.2px;
 
+  %% Top: clients -> edge -> messaging -> services -> data (vertical flow to reduce overlaps)
   subgraph clients [Clients]
     direction TB
-    API["HTTP clients<br/>(API & tests)"]:::clients
+    API["HTTP clients\n(API & tests)"]:::clients
   end
 
   subgraph edge [Edge / API Gateway]
     direction TB
-    OS["order-service<br/>REST API"]:::edge
+    OS["order-service\nREST API"]:::edge
   end
 
   subgraph backbone [Messaging / Kafka]
     direction TB
-    K["Kafka<br/>orders · inventory · payments<br/>+ DLT topics"]:::msg
+    K["Kafka\norders · inventory · payments\n+ DLT topics"]:::msg
   end
 
   subgraph services [Services]
@@ -40,28 +42,45 @@ flowchart LR
 
   subgraph data [Data stores]
     direction LR
-    PG[("PostgreSQL<br/>orders · inventory · payments")]:::data
-    R[("Redis<br/>idemp + caches")]:::data
+    PG[("PostgreSQL\norders · inventory · payments")]:::data
+    R[("Redis\nidemp + caches")]:::data
   end
 
-  %% Connections (with colored arrows)
+  %% Connections (spaced out, with labels kept short)
   API -->|HTTP| OS
   OS -->|writes| PG
   OS -->|cache| R
+
+  OS <-->|pub / cons| K
+  K --> IS
+  K --> PS
+
   IS -->|reads/writes| PG
   PS -->|reads/writes| PG
 
-  OS <-->|publish / consume| K
-  IS <-->|publish / consume| K
-  PS <-->|publish / consume| K
+  %% Move patterns to the right in their own group so they don't cover nodes
+  subgraph patterns [Core patterns]
+    direction TB
+    pattern1["Transactional outbox\n(state + event in one tx)"]:::msg
+    pattern2["Idempotent consumers\n(processed_events)"]:::msg
+  end
 
-  %% Extra labels for core patterns
-  pattern1["Transactional outbox<br/>(state+event tx)"]:::msg
-  pattern2["Idempotent consumers<br/>(processed_events)"]:::msg
-  OS --- pattern1
-  IS --- pattern2
+  %% Connect patterns with dashed lines to avoid visual overlap
+  OS -.-> pattern1
+  IS -.-> pattern2
 
-  %% Apply cluster look for boxes
+  %% Explicit node styles to enforce dark text (fixes light-text on light backgrounds)
+  style API fill:#fff1f2,stroke:#b91c1c,color:#071133,font-size:14px
+  style OS  fill:#eef2ff,stroke:#3730a3,color:#071133,font-size:14px
+  style K   fill:#f0fdf4,stroke:#166534,color:#071133,font-size:14px
+  style IS  fill:#fff7ed,stroke:#b45309,color:#071133,font-size:14px
+  style PS  fill:#fff7ed,stroke:#b45309,color:#071133,font-size:14px
+  style PG  fill:#ecfeff,stroke:#075985,color:#071133,font-size:14px
+  style R   fill:#ecfeff,stroke:#075985,color:#071133,font-size:14px
+  style pattern1 fill:#f8fafc,stroke:#064e3b,color:#071133,font-size:13px
+  style pattern2 fill:#f8fafc,stroke:#064e3b,color:#071133,font-size:13px
+
+  %% Make sure cluster boxes are applied
   class clients,edge,backbone,services,data cluster;
 ```
 
