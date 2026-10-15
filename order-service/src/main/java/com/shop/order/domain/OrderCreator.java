@@ -3,9 +3,13 @@ package com.shop.order.domain;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.events.payload.OrderLineItem;
 import com.shop.order.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,23 +24,28 @@ import java.util.UUID;
 @Service
 public class OrderCreator {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderCreator.class);
+
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
     private final IdempotencyService idempotencyService;
     private final InventoryClient inventoryClient;
     private final OutboxWriter outboxWriter;
+    private final OrderMetrics orderMetrics;
 
     public OrderCreator(
             OrderRepository orderRepository,
             OrderEventRepository orderEventRepository,
             IdempotencyService idempotencyService,
             InventoryClient inventoryClient,
-            OutboxWriter outboxWriter) {
+            OutboxWriter outboxWriter,
+            OrderMetrics orderMetrics) {
         this.orderRepository = orderRepository;
         this.orderEventRepository = orderEventRepository;
         this.idempotencyService = idempotencyService;
         this.inventoryClient = inventoryClient;
         this.outboxWriter = outboxWriter;
+        this.orderMetrics = orderMetrics;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -87,9 +96,14 @@ public class OrderCreator {
         var envelope = EventJson.newEnvelope(
                 EventTypes.ORDER_CREATED,
                 orderId,
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new OrderCreatedPayload(payloadItems, total, paymentToken));
         outboxWriter.enqueue(envelope, EventTopics.ORDERS);
+        orderMetrics.orderCreated();
+        TraceContext.bind(envelope);
+        TraceContext.put(TraceContext.ORDER_STATUS, OrderStatus.PENDING);
+        MDC.remove(TraceContext.LATENCY_MS);
+        log.info("order status");
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

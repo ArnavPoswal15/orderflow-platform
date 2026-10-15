@@ -1,0 +1,23 @@
+filebeat.inputs:
+  - type: filestream
+    id: shop-logs
+    enabled: true
+    paths:
+      - /var/log/shop/*.json
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "shop-logs-%{+yyyy.MM.dd}"
+
+setup.ilm.enabled: false
+setup.template.enabled: false
+setup.template.name: shop-logs
+setup.template.pattern: shop-logs-*
+
+logging.level: info
+logging.to_stderr: true

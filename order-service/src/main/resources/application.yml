@@ -43,7 +43,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 outbox:
   poll-interval-ms: 200
@@ -57,6 +57,12 @@ shop:
   instance-id: ${HOSTNAME:local}
   sse:
     consumer-group: sse-feed-${shop.instance-id}
+  metrics:
+    initial-delay-ms: 120000
+    refresh-ms: 15000
   kafka:
     listeners:
       enabled: true
+
+logging:
+  config: classpath:logback-spring.xml

@@ -4,11 +4,14 @@ import com.shop.events.EventEnvelope;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.events.payload.PaymentFailedPayload;
 import com.shop.events.payload.PaymentRefundedPayload;
 import com.shop.events.payload.PaymentSucceededPayload;
 import com.shop.payment.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,8 @@ import java.util.UUID;
 
 @Service
 public class PaymentApplicationService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentApplicationService.class);
 
     private final PaymentRepository paymentRepository;
     private final OutboxRepository outboxRepository;
@@ -76,9 +81,12 @@ public class PaymentApplicationService {
             var envelope = EventJson.newEnvelope(
                     EventTypes.PAYMENT_FAILED,
                     orderId,
-                    UUID.randomUUID(),
+                    TraceContext.currentOrNew(),
                     new PaymentFailedPayload("declined"));
             enqueue(envelope);
+            TraceContext.bind(envelope);
+            TraceContext.putFailureReason(envelope);
+            log.info("payment declined");
             return;
         }
         paymentRepository.flush();
@@ -97,7 +105,7 @@ public class PaymentApplicationService {
         var envelope = EventJson.newEnvelope(
                 EventTypes.PAYMENT_SUCCEEDED,
                 orderId,
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new PaymentSucceededPayload(fresh.getAmountCents()));
         enqueue(envelope);
     }
@@ -116,7 +124,7 @@ public class PaymentApplicationService {
         var envelope = EventJson.newEnvelope(
                 EventTypes.PAYMENT_REFUNDED,
                 payment.getOrderId(),
-                UUID.randomUUID(),
+                TraceContext.currentOrNew(),
                 new PaymentRefundedPayload(payment.getAmountCents()));
         enqueue(envelope);
     }

@@ -1,13 +1,17 @@
 package com.shop.order;
 
 import com.redis.testcontainers.RedisContainer;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(properties = {
@@ -37,7 +41,15 @@ class OrderServiceApplicationTests {
         registry.add("inventory.base-url", () -> "http://localhost:8081");
     }
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void outboxBacklogGaugeIsRegistered() {
+        assertNotNull(meterRegistry.find("shop.outbox.backlog").gauge());
     }
 }

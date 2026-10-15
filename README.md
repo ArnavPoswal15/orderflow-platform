@@ -2,7 +2,7 @@
 
 Event-driven order platform for grocery-style orders: **order**, **inventory**, and **payment** services each own a database and coordinate through **Kafka** using a choreographed saga (no central orchestrator). A Next.js storefront in `web/` is the shop UI.
 
-**Status:** Phases 1–4 implemented (happy path, failure/cancel/refund, edge API + SSE, storefront). The ops dashboard and observability are later phases.
+**Status:** Phases 1–6 implemented (happy path through ops dashboard and local ELK observability). Phase 7 (k6, CI, polish) is not started.
 
 ## Architecture
 
@@ -95,7 +95,7 @@ flowchart TB
 
 ## Stack
 
-Java 21 · Spring Boot 3 · Maven · Kafka (KRaft) · PostgreSQL 16 · Redis 7 · Flyway · Testcontainers · Next.js · Tailwind
+Java 21 · Spring Boot 3 · Maven · Kafka (KRaft) · PostgreSQL 16 · Redis 7 · Flyway · Testcontainers · Next.js · Tailwind · structured JSON logs (Logstash encoder) · Micrometer / Actuator metrics
 
 ## Quick start
 
@@ -107,6 +107,9 @@ Java 21 · Spring Boot 3 · Maven · Kafka (KRaft) · PostgreSQL 16 · Redis 7 �
 
 # Full stack (Kafka, Postgres, Redis, three services, storefront)
 docker compose up --build
+
+# Optional ELK (~4GB extra RAM) — observability/README.md; Kibana http://localhost:5601, Discover shop-logs*, orderId: "<uuid>"
+docker compose --profile elk up --build
 
 # Acceptance scenarios A1–A7 (Docker; forks JVM services)
 ./mvnw -pl acceptance-tests -Pacceptance test
@@ -144,6 +147,7 @@ The browser calls same-origin `/api`. REST (`/api/products`, `/api/orders`) is r
 | `payment-service/` | Simulated gateway, charges and refunds |
 | `acceptance-tests/` | End-to-end scenarios (profile `acceptance`) |
 | `web/` | Next.js storefront (shop, cart, checkout, live order page) |
+| `observability/` | ELK config, Kibana dashboard export, operator docs |
 | `docs/` | Requirements, architecture, phased build plan |
 | `reference/node-prototype/` | Earlier Node reference (read-only) |
 

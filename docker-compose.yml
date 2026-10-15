@@ -61,8 +61,11 @@ services:
       POSTGRES_PASSWORD: shop
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8081
+      SPRING_PROFILES_ACTIVE: elk-file
     ports:
       - "8081:8081"
+    volumes:
+      - shop-logs:/var/log/shop
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,8 +84,11 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8082
       PAYMENT_FAILURE_RATE: 0
+      SPRING_PROFILES_ACTIVE: elk-file
     ports:
       - "8082:8082"
+    volumes:
+      - shop-logs:/var/log/shop
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,8 +109,11 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8081
       PAYMENT_SERVICE_URL: http://payment-service:8082
       SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: elk-file
     ports:
       - "8080:8080"
+    volumes:
+      - shop-logs:/var/log/shop
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,3 +138,127 @@ services:
     depends_on:
       order-service:
         condition: service_started
+
+  # Local demo only. Security is off. Start with: docker compose --profile elk up --build
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    profiles: ["elk"]
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ingest.geoip.downloader.enabled: "false"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  elastic-setup:
+    image: curlimages/curl:8.17.0
+    profiles: ["elk"]
+    restart: "no"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./observability/index-template.json:/index-template.json:ro
+    command:
+      - "--fail-with-body"
+      - "--show-error"
+      - "--retry"
+      - "20"
+      - "--retry-delay"
+      - "3"
+      - "--retry-connrefused"
+      - "--retry-all-errors"
+      - "-X"
+      - "PUT"
+      - "http://elasticsearch:9200/_index_template/shop-logs"
+      - "-H"
+      - "Content-Type: application/json"
+      - "--data-binary"
+      - "@/index-template.json"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    profiles: ["elk"]
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:5601/api/status | grep -qE '"level"[[:space:]]*:[[:space:]]*"available"'
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 90s
+
+  kibana-setup:
+    image: curlimages/curl:8.17.0
+    profiles: ["elk"]
+    restart: "no"
+    depends_on:
+      kibana:
+        condition: service_healthy
+    volumes:
+      - ./observability/order-platform.ndjson:/order-platform.ndjson:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -eu
+        response=$$(curl --fail-with-body --silent --show-error \
+          --retry 30 --retry-delay 5 --retry-all-errors \
+          -X POST "http://kibana:5601/api/saved_objects/_import?overwrite=true" \
+          -H "kbn-xsrf: true" \
+          --form file=@/order-platform.ndjson)
+        printf '%s\n' "$$response"
+        printf '%s' "$$response" | grep -qE '"success"[[:space:]]*:[[:space:]]*true'
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    profiles: ["elk"]
+    restart: unless-stopped
+    user: root
+    entrypoint: ["/usr/share/filebeat/filebeat"]
+    command: ["-e", "--strict.perms=false"]
+    volumes:
+      - ./observability/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - shop-logs:/var/log/shop:ro
+      - filebeat-data:/usr/share/filebeat/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      elastic-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/share/filebeat/filebeat", "test", "output"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  shop-logs:
+  elasticsearch-data:
+  filebeat-data:

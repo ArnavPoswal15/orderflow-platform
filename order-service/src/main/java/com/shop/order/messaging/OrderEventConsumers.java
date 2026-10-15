@@ -4,6 +4,7 @@ import com.shop.events.EventEnvelope;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.TraceContext;
 import com.shop.events.payload.InventoryRejectedPayload;
 import com.shop.events.payload.InventoryReleasedPayload;
 import com.shop.events.payload.InventoryReservedPayload;
@@ -12,6 +13,8 @@ import com.shop.order.domain.OrderApplicationService;
 import com.shop.order.domain.OrderStatus;
 import com.shop.order.domain.StockCacheService;
 import com.shop.order.persistence.ProcessedEventRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -25,6 +28,8 @@ import java.util.function.Consumer;
 
 @Component
 public class OrderEventConsumers {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderEventConsumers.class);
 
     private final ProcessedEventRepository processedEventRepository;
     private final OrderApplicationService orderApplicationService;
@@ -114,6 +119,8 @@ public class OrderEventConsumers {
             ack.acknowledge();
             return;
         }
+        TraceContext.bind(envelope);
+        log.info("consumed");
         handler.accept(envelope);
         ack.acknowledge();
     }

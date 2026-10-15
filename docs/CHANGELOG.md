@@ -39,6 +39,13 @@
 - Checkout keeps one `Idempotency-Key` in `sessionStorage` (`shop.checkoutAttempt`) until the cart or payment token changes, and drops it only after a successful POST.
 - The order page reads SSE with `fetch` and refetches every 400ms while the status is `PENDING` or `RESERVED`, so `CONFIRMED` appears without waiting for a later event.
 
+## Phase 6 — Observability (ELK) (2026-10-16)
+- Structured JSON logs (Logstash encoder) with `orderId`, `eventId`, `traceId`, `eventType`, `orderStatus`, `failureReason`, `latencyMs` in MDC via `common-events` `TraceContext` and shared `logback-spring.xml`.
+- order-service `TraceIdFilter` sets/echoes `X-Trace-Id`; Kafka producers/consumers propagate trace via record headers (`TraceRecordInterceptor`, `OutboxPublisher`).
+- Compose profile `elk`: Elasticsearch 8.17, Kibana, Filebeat (tails `/var/log/shop/*.json` when `SPRING_PROFILES_ACTIVE=elk-file`), index template `shop-logs`, imported dashboard `observability/order-platform.ndjson` (`kibana-setup`).
+- Micrometer: `shop.outbox.backlog`, `shop.consumer.lag`, `shop.dlt.messages` on all three services; `shop.orders.created` / `shop.orders.cancelled` on order-service (Actuator `/actuator/metrics/...`, `prometheus`).
+- Operator docs: `observability/README.md`. Kibana NDJSON export omits legacy `migrationVersion` for Kibana 8.17 import.
+
 ## Phase 5 — Ops dashboard (2026-10-15)
 - `/ops` page: live SSE feed (`GET /api/stream/events`), stock table, order-status and DLT counters, a 0–100 failure-rate slider, and a flash-sale result panel. Ops is linked from the site header. `/api/admin` is rewritten to order-service.
 - payment-service `GET`/`PUT /admin/failure-rate` with `{ "percent" }`. `PaymentFailureRate` is an `AtomicInteger` seeded from `PAYMENT_FAILURE_RATE` (default 0). `PaymentGateway.charge` reads it on every call. Out of range is RFC 7807 400. Token `fail` still declines at 0%.
