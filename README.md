@@ -1,4 +1,4 @@
-# Order Platform
+# Orderflow Platform
 
 [![CI](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml)
 
