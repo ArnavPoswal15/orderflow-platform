@@ -10,6 +10,7 @@ public record OrderView(
         String status,
         long totalCents,
         String paymentToken,
+        String cancelReason,
         List<Line> items,
         List<HistoryEntry> history,
         Instant createdAt,

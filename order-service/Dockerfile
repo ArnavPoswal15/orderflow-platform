@@ -9,6 +9,6 @@ RUN mvn -q -pl order-service -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /build/order-service/target/order-service-*.jar app.jar
+COPY --from=build /build/order-service/target/order-service-*-boot.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

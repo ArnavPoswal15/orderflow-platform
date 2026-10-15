@@ -2,6 +2,7 @@ package com.shop.order.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shop.order.domain.OrderApplicationService;
+import com.shop.order.domain.OrderStateMachine;
 import com.shop.order.domain.OrderView;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -76,6 +77,35 @@ public class OrderController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancel(@PathVariable UUID id, @RequestBody(required = false) CancelRequest body) {
+        try {
+            String reason = body != null && body.reason != null ? body.reason : "customer_requested";
+            OrderView view = orderService.cancelOrder(id, reason);
+            return ResponseEntity.accepted().body(view);
+        } catch (OrderApplicationService.NotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (OrderStateMachine.IllegalTransitionException e) {
+            ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+            pd.setDetail(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+        }
+    }
+
+    @PostMapping("/{id}/ship")
+    public ResponseEntity<?> ship(@PathVariable UUID id) {
+        try {
+            OrderView view = orderService.shipOrder(id);
+            return ResponseEntity.accepted().body(view);
+        } catch (OrderApplicationService.NotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (OrderStateMachine.IllegalTransitionException e) {
+            ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+            pd.setDetail(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+        }
+    }
+
     public static class CreateOrderRequest {
         public List<Item> items;
         public String paymentToken;
@@ -84,5 +114,9 @@ public class OrderController {
             public String sku;
             public int qty;
         }
+    }
+
+    public static class CancelRequest {
+        public String reason;
     }
 }

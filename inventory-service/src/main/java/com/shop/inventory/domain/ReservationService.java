@@ -3,10 +3,12 @@ package com.shop.inventory.domain;
 import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
+import com.shop.events.payload.InventoryRejectedPayload;
 import com.shop.events.payload.InventoryReservedPayload;
 import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.events.payload.OrderLineItem;
 import com.shop.inventory.persistence.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,29 +21,46 @@ public class ReservationService {
     private final InventoryRepository inventoryRepository;
     private final ReservationRepository reservationRepository;
     private final OutboxRepository outboxRepository;
+    private final String poisonOrderIdPrefix;
 
     public ReservationService(
             InventoryRepository inventoryRepository,
             ReservationRepository reservationRepository,
-            OutboxRepository outboxRepository) {
+            OutboxRepository outboxRepository,
+            @Value("${inventory.test.poison-order-id-prefix:}") String poisonOrderIdPrefix) {
         this.inventoryRepository = inventoryRepository;
         this.reservationRepository = reservationRepository;
         this.outboxRepository = outboxRepository;
+        this.poisonOrderIdPrefix = poisonOrderIdPrefix;
     }
 
     @Transactional
     public void handleOrderCreated(UUID orderId, OrderCreatedPayload payload) {
+        if (!poisonOrderIdPrefix.isEmpty() && orderId.toString().startsWith(poisonOrderIdPrefix)) {
+            throw new IllegalStateException("test poison order " + orderId);
+        }
         if (reservationRepository.existsById(orderId)) {
             return;
         }
         List<OrderLineItem> sorted = new ArrayList<>(payload.items());
         sorted.sort(Comparator.comparing(OrderLineItem::sku));
 
+        List<OrderLineItem> decremented = new ArrayList<>();
         for (OrderLineItem line : sorted) {
             int updated = inventoryRepository.decrementStock(line.sku(), line.qty());
             if (updated == 0) {
-                throw new OutOfStockException(line.sku());
+                for (OrderLineItem prior : decremented) {
+                    inventoryRepository.incrementStock(prior.sku(), prior.qty());
+                }
+                var envelope = EventJson.newEnvelope(
+                        EventTypes.INVENTORY_REJECTED,
+                        orderId,
+                        UUID.randomUUID(),
+                        new InventoryRejectedPayload(line.sku(), "out_of_stock"));
+                enqueue(envelope);
+                return;
             }
+            decremented.add(line);
         }
 
         ReservationEntity reservation = new ReservationEntity();
@@ -70,11 +89,5 @@ public class ReservationService {
         row.setPayload(EventJson.serialize(envelope));
         row.setCreatedAt(Instant.now());
         outboxRepository.save(row);
-    }
-
-    public static class OutOfStockException extends RuntimeException {
-        public OutOfStockException(String sku) {
-            super(sku);
-        }
     }
 }

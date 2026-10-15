@@ -5,6 +5,8 @@ import com.shop.events.EventJson;
 import com.shop.events.EventTopics;
 import com.shop.events.EventTypes;
 import com.shop.events.payload.OrderCreatedPayload;
+import com.shop.events.payload.PaymentFailedPayload;
+import com.shop.events.payload.PaymentRefundedPayload;
 import com.shop.events.payload.PaymentSucceededPayload;
 import com.shop.payment.persistence.*;
 import org.springframework.stereotype.Service;
@@ -47,29 +49,75 @@ public class PaymentApplicationService {
     }
 
     @Transactional
+    public void handleOrderCancelled(UUID orderId) {
+        PaymentEntity payment = paymentRepository.findById(orderId).orElse(null);
+        if (payment == null) {
+            return;
+        }
+        payment.setCancelRequested(true);
+        payment.setUpdatedAt(Instant.now());
+        if (PaymentStatus.SUCCEEDED.equals(payment.getStatus())) {
+            refundPayment(payment);
+        }
+        paymentRepository.save(payment);
+    }
+
+    @Transactional
     public void chargeOnReserved(UUID orderId) {
         PaymentEntity payment = paymentRepository.findById(orderId)
                 .orElseThrow(() -> new PaymentNotReadyException(orderId));
-        if (payment.isCancelRequested()) {
-            return;
-        }
-        if (!PaymentStatus.PENDING.equals(payment.getStatus())) {
+        if (payment.isCancelRequested() || !PaymentStatus.PENDING.equals(payment.getStatus())) {
             return;
         }
         boolean ok = paymentGateway.charge(payment.getPaymentToken());
         if (!ok) {
             payment.setStatus(PaymentStatus.FAILED);
             payment.setUpdatedAt(Instant.now());
-            // Phase 2: payment.failed outbox
+            var envelope = EventJson.newEnvelope(
+                    EventTypes.PAYMENT_FAILED,
+                    orderId,
+                    UUID.randomUUID(),
+                    new PaymentFailedPayload("declined"));
+            enqueue(envelope);
             return;
         }
-        payment.setStatus(PaymentStatus.SUCCEEDED);
-        payment.setUpdatedAt(Instant.now());
+        paymentRepository.flush();
+        PaymentEntity fresh = paymentRepository.findById(orderId).orElseThrow();
+        if (fresh.isCancelRequested()) {
+            fresh.setStatus(PaymentStatus.SUCCEEDED);
+            fresh.setUpdatedAt(Instant.now());
+            paymentGateway.refund(fresh.getPaymentToken());
+            fresh.setStatus(PaymentStatus.REFUNDED);
+            fresh.setUpdatedAt(Instant.now());
+            enqueueRefund(fresh);
+            return;
+        }
+        fresh.setStatus(PaymentStatus.SUCCEEDED);
+        fresh.setUpdatedAt(Instant.now());
         var envelope = EventJson.newEnvelope(
                 EventTypes.PAYMENT_SUCCEEDED,
                 orderId,
                 UUID.randomUUID(),
-                new PaymentSucceededPayload(payment.getAmountCents()));
+                new PaymentSucceededPayload(fresh.getAmountCents()));
+        enqueue(envelope);
+    }
+
+    private void refundPayment(PaymentEntity payment) {
+        if (PaymentStatus.REFUNDED.equals(payment.getStatus())) {
+            return;
+        }
+        paymentGateway.refund(payment.getPaymentToken());
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment.setUpdatedAt(Instant.now());
+        enqueueRefund(payment);
+    }
+
+    private void enqueueRefund(PaymentEntity payment) {
+        var envelope = EventJson.newEnvelope(
+                EventTypes.PAYMENT_REFUNDED,
+                payment.getOrderId(),
+                UUID.randomUUID(),
+                new PaymentRefundedPayload(payment.getAmountCents()));
         enqueue(envelope);
     }
 

@@ -23,4 +23,8 @@ public class PaymentGateway {
         }
         return ThreadLocalRandom.current().nextInt(100) >= failureRatePercent;
     }
+
+    public void refund(String paymentToken) {
+        // simulated gateway — always succeeds
+    }
 }

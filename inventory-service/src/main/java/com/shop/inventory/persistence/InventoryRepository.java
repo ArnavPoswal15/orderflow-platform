@@ -16,4 +16,11 @@ public interface InventoryRepository extends JpaRepository<InventoryEntity, Stri
             WHERE sku = :sku AND available >= :qty
             """, nativeQuery = true)
     int decrementStock(String sku, int qty);
+
+    @Modifying
+    @Query(value = """
+            UPDATE inventory SET available = available + :qty, version = version + 1
+            WHERE sku = :sku
+            """, nativeQuery = true)
+    int incrementStock(String sku, int qty);
 }

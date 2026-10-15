@@ -9,6 +9,6 @@ RUN mvn -q -pl payment-service -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /build/payment-service/target/payment-service-*.jar app.jar
+COPY --from=build /build/payment-service/target/payment-service-*-boot.jar app.jar
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]

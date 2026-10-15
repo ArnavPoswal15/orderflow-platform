@@ -1,6 +1,12 @@
 package com.shop.order.domain;
 
+import com.shop.events.EventJson;
+import com.shop.events.EventTopics;
+import com.shop.events.EventTypes;
+import com.shop.events.payload.OrderCancelledPayload;
 import com.shop.order.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,20 +19,25 @@ import java.util.*;
 @Service
 public class OrderApplicationService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderApplicationService.class);
+
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
     private final IdempotencyService idempotencyService;
     private final OrderCreator orderCreator;
+    private final OutboxWriter outboxWriter;
 
     public OrderApplicationService(
             OrderRepository orderRepository,
             OrderEventRepository orderEventRepository,
             IdempotencyService idempotencyService,
-            OrderCreator orderCreator) {
+            OrderCreator orderCreator,
+            OutboxWriter outboxWriter) {
         this.orderRepository = orderRepository;
         this.orderEventRepository = orderEventRepository;
         this.idempotencyService = idempotencyService;
         this.orderCreator = orderCreator;
+        this.outboxWriter = outboxWriter;
     }
 
     @Transactional(readOnly = true)
@@ -63,13 +74,45 @@ public class OrderApplicationService {
     }
 
     @Transactional
+    public OrderView cancelOrder(UUID orderId, String reason) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException(orderId));
+        String from = order.getStatus();
+        OrderStateMachine.assertTransition(from, OrderStatus.CANCELLED);
+        applyCancelled(order, from, reason != null ? reason : "customer_requested", EventTypes.ORDER_CANCELLED);
+        return toView(order);
+    }
+
+    @Transactional
+    public OrderView shipOrder(UUID orderId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException(orderId));
+        String from = order.getStatus();
+        OrderStateMachine.assertTransition(from, OrderStatus.SHIPPED);
+        order.setStatus(OrderStatus.SHIPPED);
+        order.setUpdatedAt(Instant.now());
+        appendHistory(orderId, EventTypes.ORDER_SHIPPED, Map.of("from", from, "to", OrderStatus.SHIPPED));
+        return toView(order);
+    }
+
+    @Transactional
     public void transition(UUID orderId, String toStatus, String eventType, Map<String, Object> data) {
-        OrderEntity order = orderRepository.findById(orderId).orElseThrow();
+        OrderEntity order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Order {} not found for event {}", orderId, eventType);
+            return;
+        }
         String from = order.getStatus();
         if (from.equals(toStatus)) {
             return;
         }
-        if (OrderStatus.CANCELLED.equals(from) && OrderStatus.CONFIRMED.equals(toStatus)) {
+        if (!OrderStateMachine.canTransition(from, toStatus)) {
+            log.warn("Ignoring illegal transition for order {} from {} to {} on {}", orderId, from, toStatus, eventType);
+            return;
+        }
+        if (OrderStatus.CANCELLED.equals(toStatus)) {
+            String reason = data != null && data.get("reason") != null ? data.get("reason").toString() : eventType;
+            applyCancelled(order, from, reason, eventType);
             return;
         }
         order.setStatus(toStatus);
@@ -78,6 +121,22 @@ public class OrderApplicationService {
         hist.put("from", from);
         hist.put("to", toStatus);
         appendHistory(orderId, eventType, hist);
+    }
+
+    private void applyCancelled(OrderEntity order, String from, String reason, String eventType) {
+        UUID orderId = order.getId();
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelReason(reason);
+        order.setUpdatedAt(Instant.now());
+        boolean paidBeforeCancel = OrderStatus.CONFIRMED.equals(from);
+        Map<String, Object> hist = Map.of("from", from, "to", OrderStatus.CANCELLED, "reason", reason);
+        appendHistory(orderId, eventType, hist);
+        var envelope = EventJson.newEnvelope(
+                EventTypes.ORDER_CANCELLED,
+                orderId,
+                UUID.randomUUID(),
+                new OrderCancelledPayload(reason, paidBeforeCancel));
+        outboxWriter.enqueue(envelope, EventTopics.ORDERS);
     }
 
     private void appendHistory(UUID orderId, String type, Map<String, Object> data) {
@@ -102,6 +161,7 @@ public class OrderApplicationService {
                 order.getStatus(),
                 order.getTotalCents(),
                 order.getPaymentToken(),
+                order.getCancelReason(),
                 lines,
                 hist,
                 order.getCreatedAt(),
@@ -129,6 +189,12 @@ public class OrderApplicationService {
     public static class BadRequestException extends RuntimeException {
         public BadRequestException(String message) {
             super(message);
+        }
+    }
+
+    public static class NotFoundException extends RuntimeException {
+        public NotFoundException(UUID id) {
+            super("Order not found: " + id);
         }
     }
 }
