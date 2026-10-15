@@ -23,7 +23,12 @@ public class HttpTestClient {
     }
 
     public JsonNode createOrder(String sku, int qty, String paymentToken, String idempotencyKey) throws Exception {
-        RawOrderResponse raw = createOrderRaw(sku, qty, paymentToken, idempotencyKey);
+        return createOrder(sku, qty, paymentToken, idempotencyKey, null);
+    }
+
+    public JsonNode createOrder(
+            String sku, int qty, String paymentToken, String idempotencyKey, String xForwardedFor) throws Exception {
+        RawOrderResponse raw = createOrderRaw(sku, qty, paymentToken, idempotencyKey, xForwardedFor);
         if (raw.statusCode() != 202 && raw.statusCode() != 200) {
             throw new IllegalStateException("create order failed: " + raw.statusCode() + " " + raw.body());
         }
@@ -32,14 +37,22 @@ public class HttpTestClient {
 
     public RawOrderResponse createOrderRaw(String sku, int qty, String paymentToken, String idempotencyKey)
             throws Exception {
+        return createOrderRaw(sku, qty, paymentToken, idempotencyKey, null);
+    }
+
+    public RawOrderResponse createOrderRaw(
+            String sku, int qty, String paymentToken, String idempotencyKey, String xForwardedFor)
+            throws Exception {
         String body = String.format(
                 "{\"items\":[{\"sku\":\"%s\",\"qty\":%d}],\"paymentToken\":\"%s\"}", sku, qty, paymentToken);
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/orders"))
                 .header("Content-Type", "application/json")
-                .header("Idempotency-Key", idempotencyKey)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Idempotency-Key", idempotencyKey);
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            builder.header("X-Forwarded-For", xForwardedFor);
+        }
+        HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
         Map<String, List<String>> headers = response.headers().map();
         return new RawOrderResponse(response.statusCode(), headers, response.body());
