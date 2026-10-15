@@ -166,7 +166,7 @@ Record your machine’s numbers in [docs/benchmarks.md](docs/benchmarks.md) (tem
 
 ## CI
 
-GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on push/PR to `main`: JDK 21 (Temurin), Docker available for Testcontainers, `./mvnw -q verify`. Acceptance tests stay behind `-Pacceptance` (same as local default verify).
+GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on **pull requests targeting `master`**: JDK 21 (Temurin), Docker available for Testcontainers, `./mvnw -q verify`. Merges to `master` do not trigger a separate push workflow. Acceptance tests stay behind `-Pacceptance` (same as local default verify). The badge reflects the latest workflow run on the default branch.
 
 ## Demo
 
@@ -214,3 +214,7 @@ Capture instructions: [docs/assets/README.md](docs/assets/README.md).
 | [docs/benchmarks.md](docs/benchmarks.md) | Load test results template |
 | [docs/DEMO.md](docs/DEMO.md) | Live demo script |
 | [docs/Frontend-guidelines.md](docs/Frontend-guidelines.md) | Next.js storefront conventions (`web/`) |
+
+## License
+
+[MIT](LICENSE) — see [LICENSE](LICENSE) for the full text.
