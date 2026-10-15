@@ -21,7 +21,7 @@ Optional overrides:
 BASE_URL=http://localhost:8080 INVENTORY_URL=http://localhost:8081 SKU=LASTITEM INITIAL_STOCK=1 VUS=50 k6 run loadtest/orders.js
 ```
 
-## Run record (fill after a local run)
+## Run record (fill after a local run- these are mine)
 
 | Field | Value |
 |-------|-------|
