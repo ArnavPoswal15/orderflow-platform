@@ -6,7 +6,7 @@ These files describe **what is actually in the repository** after each build pha
 |-------|------|--------|
 | 1 | [phase-01-foundations.md](./phase-01-foundations.md) | Complete |
 | 2 | [phase-02-failures-reliability.md](./phase-02-failures-reliability.md) | Complete |
-| 3 | [phase-03-edge-api.md](./phase-03-edge-api.md) | Not started |
+| 3 | [phase-03-edge-api.md](./phase-03-edge-api.md) | Complete |
 | 4 | [phase-04-storefront.md](./phase-04-storefront.md) | Not started |
 | 5 | [phase-05-ops-dashboard.md](./phase-05-ops-dashboard.md) | Not started |
 | 6 | [phase-06-observability.md](./phase-06-observability.md) | Not started |

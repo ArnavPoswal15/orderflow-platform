@@ -7,6 +7,7 @@ import com.shop.events.payload.OrderCreatedPayload;
 import com.shop.events.payload.OrderLineItem;
 import com.shop.order.persistence.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -36,6 +37,12 @@ public class OrderCreator {
         this.idempotencyService = idempotencyService;
         this.inventoryClient = inventoryClient;
         this.outboxWriter = outboxWriter;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public OrderEntity createInNewTransaction(
+            String idempotencyKey, String requestHash, List<OrderApplicationService.LineRequest> lines, String paymentToken) {
+        return create(idempotencyKey, requestHash, lines, paymentToken);
     }
 
     @Transactional

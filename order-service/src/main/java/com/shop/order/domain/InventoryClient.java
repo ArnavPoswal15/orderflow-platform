@@ -17,6 +17,17 @@ public class InventoryClient {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
     }
 
+    public List<SkuInfo> listAllProducts() {
+        ProductListResponse response = restClient.get()
+                .uri("/internal/products")
+                .retrieve()
+                .body(ProductListResponse.class);
+        if (response == null || response.products == null) {
+            return List.of();
+        }
+        return response.products;
+    }
+
     public Map<String, SkuInfo> fetchSkus(List<String> skus) {
         SkuBatchResponse response = restClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/internal/skus").queryParam("sku", skus.toArray()).build())
@@ -31,4 +42,6 @@ public class InventoryClient {
     public record SkuInfo(String sku, String name, long priceCents, int available) {}
 
     private record SkuBatchResponse(List<SkuInfo> skus) {}
+
+    private record ProductListResponse(List<SkuInfo> products) {}
 }

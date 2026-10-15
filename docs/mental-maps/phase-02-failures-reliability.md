@@ -50,6 +50,5 @@
 
 ## Not built yet (later phases)
 
-- A3, A8 (idempotency hash / rate limit — Phase 3)
-- Admin DLT stats endpoint (Phase 5/6)
-- SSE, storefront, ship/deliver operator flows beyond minimal ship API
+- Storefront UI, ops flash-sale / failure-rate controls (Phase 4–5)
+- Full observability stack (Phase 6)

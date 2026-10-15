@@ -44,3 +44,16 @@ management:
 
 outbox:
   poll-interval-ms: 200
+
+order:
+  rate-limit:
+    limit-per-minute: 20
+    window-seconds: 60
+
+shop:
+  instance-id: ${HOSTNAME:local}
+  sse:
+    consumer-group: sse-feed-${shop.instance-id}
+  kafka:
+    listeners:
+      enabled: true

@@ -7,6 +7,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class HttpTestClient {
@@ -20,6 +22,15 @@ public class HttpTestClient {
     }
 
     public JsonNode createOrder(String sku, int qty, String paymentToken, String idempotencyKey) throws Exception {
+        RawOrderResponse raw = createOrderRaw(sku, qty, paymentToken, idempotencyKey);
+        if (raw.statusCode() != 202 && raw.statusCode() != 200) {
+            throw new IllegalStateException("create order failed: " + raw.statusCode() + " " + raw.body());
+        }
+        return mapper.readTree(raw.body());
+    }
+
+    public RawOrderResponse createOrderRaw(String sku, int qty, String paymentToken, String idempotencyKey)
+            throws Exception {
         String body = String.format(
                 "{\"items\":[{\"sku\":\"%s\",\"qty\":%d}],\"paymentToken\":\"%s\"}", sku, qty, paymentToken);
         HttpRequest request = HttpRequest.newBuilder()
@@ -29,11 +40,11 @@ public class HttpTestClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 202 && response.statusCode() != 200) {
-            throw new IllegalStateException("create order failed: " + response.statusCode() + " " + response.body());
-        }
-        return mapper.readTree(response.body());
+        Map<String, List<String>> headers = response.headers().map();
+        return new RawOrderResponse(response.statusCode(), headers, response.body());
     }
+
+    public record RawOrderResponse(int statusCode, Map<String, List<String>> headers, String body) {}
 
     public JsonNode getOrder(UUID orderId) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()

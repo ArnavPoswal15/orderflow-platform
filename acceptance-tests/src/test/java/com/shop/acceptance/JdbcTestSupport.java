@@ -10,6 +10,37 @@ public final class JdbcTestSupport {
 
     private JdbcTestSupport() {}
 
+    public static int countOrders(String ordersJdbcUrl) throws Exception {
+        try (Connection c = DriverManager.getConnection(ordersJdbcUrl, "shop", "shop");
+                PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM orders")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    public static int countOrdersByIdempotencyKey(String ordersJdbcUrl, String idempotencyKey) throws Exception {
+        try (Connection c = DriverManager.getConnection(ordersJdbcUrl, "shop", "shop");
+                PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM orders WHERE idempotency_key = ?")) {
+            ps.setString(1, idempotencyKey);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    public static int countSucceededPayments(String paymentsJdbcUrl) throws Exception {
+        try (Connection c = DriverManager.getConnection(paymentsJdbcUrl, "shop", "shop");
+                PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM payments WHERE status = 'SUCCEEDED'")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
     public static int countOrdersByStatus(String jdbcUrl, String status) throws Exception {
         try (Connection c = DriverManager.getConnection(jdbcUrl, "shop", "shop");
                 PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM orders WHERE status = ?")) {

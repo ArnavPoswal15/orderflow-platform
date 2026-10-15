@@ -29,6 +29,14 @@ public class InternalInventoryController {
         return new SkuBatchResponse(result);
     }
 
+    @GetMapping("/products")
+    public ProductListResponse allProducts() {
+        List<SkuInfo> result = inventoryRepository.findAll().stream()
+                .map(this::toInfo)
+                .toList();
+        return new ProductListResponse(result);
+    }
+
     private SkuInfo toInfo(InventoryEntity e) {
         return new SkuInfo(e.getSku(), e.getName(), e.getPriceCents(), e.getAvailable());
     }
@@ -36,4 +44,6 @@ public class InternalInventoryController {
     public record SkuInfo(String sku, String name, long priceCents, int available) {}
 
     public record SkuBatchResponse(List<SkuInfo> skus) {}
+
+    public record ProductListResponse(List<SkuInfo> products) {}
 }
