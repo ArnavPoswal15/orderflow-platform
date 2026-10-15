@@ -46,6 +46,30 @@ export type EventEnvelope = {
   payload: unknown;
 };
 
+export type AdminStatsView = {
+  ordersByStatus: Record<string, number>;
+  outboxBacklog: number;
+  dltCounts: Record<string, number>;
+};
+
+export type FailureRateView = {
+  percent: number;
+};
+
+export type FlashSaleOrder = {
+  orderId: string;
+  status: string;
+  cancelReason: string | null;
+};
+
+export type FlashSaleResult = {
+  sku: string;
+  concurrentOrders: number;
+  confirmed: number;
+  cancelled: number;
+  orders: FlashSaleOrder[];
+};
+
 export type ProblemDetail = {
   type?: string;
   title?: string;

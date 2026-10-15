@@ -1,5 +1,6 @@
 package com.shop.order.api;
 
+import com.shop.order.domain.InventoryClient;
 import com.shop.order.domain.OrderApplicationService;
 import com.shop.order.domain.OrderStateMachine;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,12 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(OrderApplicationService.NotFoundException.class)
     public ResponseEntity<ProblemDetail> notFound(OrderApplicationService.NotFoundException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        return problem(HttpStatus.NOT_FOUND, pd);
+    }
+
+    @ExceptionHandler(InventoryClient.UnknownSkuException.class)
+    public ResponseEntity<ProblemDetail> unknownSku(InventoryClient.UnknownSkuException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         return problem(HttpStatus.NOT_FOUND, pd);
     }

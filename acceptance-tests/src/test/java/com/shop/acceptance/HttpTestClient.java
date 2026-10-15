@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,6 +46,21 @@ public class HttpTestClient {
     }
 
     public record RawOrderResponse(int statusCode, Map<String, List<String>> headers, String body) {}
+
+    public JsonNode flashSale(String sku, int concurrentOrders) throws Exception {
+        String body = String.format("{\"sku\":\"%s\",\"concurrentOrders\":%d}", sku, concurrentOrders);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/admin/flash-sale"))
+                .timeout(Duration.ofSeconds(180))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("flash sale failed: " + response.statusCode() + " " + response.body());
+        }
+        return mapper.readTree(response.body());
+    }
 
     public JsonNode getOrder(UUID orderId) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()

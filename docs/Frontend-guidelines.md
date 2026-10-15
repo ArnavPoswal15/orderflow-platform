@@ -22,15 +22,17 @@ Confirm framework APIs against current docs when unsure (`web/AGENTS.md`).
 
 ```
 web/
-├── app/              # Routes (App Router)
+├── app/              # Routes (App Router). Pages are Server Components.
 │   ├── page.tsx      # Product grid
-│   ├── cart/, checkout/, orders/, orders/[id]/
+│   ├── cart/, checkout/, orders/, orders/[id]/, ops/
 │   └── api/stream/   # SSE proxy (not rewritten — see below)
-├── components/       # UI building blocks
+├── components/       # UI building blocks. Client pieces: cart, checkout, ops, live order.
 ├── lib/
-│   ├── api.ts        # HTTP client + problem+json
+│   ├── api.ts        # Browser HTTP client + problem+json
+│   ├── server-api.ts # Server fetches via ORDER_SERVICE_URL
 │   ├── types.ts      # DTOs matching order-service JSON
 │   ├── cart.tsx      # Client cart context
+│   ├── catalog-stock.ts
 │   └── format.ts     # Money, dates
 └── next.config.ts    # Rewrites + SSE-related settings
 ```
@@ -62,7 +64,7 @@ web/
 
 ## API proxy (`next.config.ts`)
 
-- **Rewrites** forward `/api/products` and `/api/orders` (+ subpaths) to order-service.
+- **Rewrites** forward `/api/products`, `/api/orders`, and `/api/admin` (+ subpaths) to order-service.
 - **Do not** add a rewrite for `/api/stream/*`. Streaming is handled by `app/api/stream/[...path]/route.ts` so Next does not buffer the body.
 - Keep `compress: false` and a long `proxyTimeout` while SSE is in use (see comments in `next.config.ts`).
 

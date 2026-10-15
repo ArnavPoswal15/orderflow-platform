@@ -1,4 +1,12 @@
-import type { OrderPageView, OrderView, ProblemDetail, ProductView } from "./types";
+import type {
+  AdminStatsView,
+  FailureRateView,
+  FlashSaleResult,
+  OrderPageView,
+  OrderView,
+  ProblemDetail,
+  ProductView,
+} from "./types";
 
 export class ApiProblem extends Error {
   readonly problem: ProblemDetail;
@@ -89,4 +97,69 @@ export async function cancelOrder(id: string, reason: string): Promise<OrderView
     body: JSON.stringify({ reason }),
   });
   return readOk<OrderView>(res);
+}
+
+function countMap(value: Record<string, number> | undefined): Record<string, number> {
+  if (!value) return {};
+  const counts: Record<string, number> = {};
+  for (const [key, count] of Object.entries(value)) {
+    counts[key] = typeof count === "number" && Number.isFinite(count) ? count : 0;
+  }
+  return counts;
+}
+
+export async function fetchAdminStats(): Promise<AdminStatsView> {
+  const res = await fetch("/api/admin/stats", { cache: "no-store" });
+  const body = await readOk<Partial<AdminStatsView>>(res);
+  return {
+    ordersByStatus: countMap(body.ordersByStatus),
+    outboxBacklog: typeof body.outboxBacklog === "number" ? body.outboxBacklog : 0,
+    dltCounts: countMap(body.dltCounts),
+  };
+}
+
+export async function fetchFailureRate(): Promise<FailureRateView> {
+  const res = await fetch("/api/admin/failure-rate", { cache: "no-store" });
+  const body = await readOk<Partial<FailureRateView>>(res);
+  return { percent: typeof body.percent === "number" ? body.percent : 0 };
+}
+
+export async function putFailureRate(percent: number): Promise<FailureRateView> {
+  const res = await fetch("/api/admin/failure-rate", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, application/problem+json",
+    },
+    body: JSON.stringify({ percent }),
+  });
+  const body = await readOk<Partial<FailureRateView>>(res);
+  return { percent: typeof body.percent === "number" ? body.percent : percent };
+}
+
+export async function postFlashSale(body: {
+  sku: string;
+  concurrentOrders: number;
+}): Promise<FlashSaleResult> {
+  const res = await fetch("/api/admin/flash-sale", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, application/problem+json",
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = await readOk<Partial<FlashSaleResult>>(res);
+  const orders = Array.isArray(raw.orders) ? raw.orders : [];
+  return {
+    sku: typeof raw.sku === "string" ? raw.sku : body.sku,
+    concurrentOrders: typeof raw.concurrentOrders === "number" ? raw.concurrentOrders : body.concurrentOrders,
+    confirmed: typeof raw.confirmed === "number" ? raw.confirmed : 0,
+    cancelled: typeof raw.cancelled === "number" ? raw.cancelled : 0,
+    orders: orders.map((order) => ({
+      orderId: typeof order?.orderId === "string" ? order.orderId : "",
+      status: typeof order?.status === "string" ? order.status : "",
+      cancelReason: typeof order?.cancelReason === "string" ? order.cancelReason : null,
+    })),
+  };
 }

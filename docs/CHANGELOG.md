@@ -38,3 +38,10 @@
 - Service Dockerfiles also copy the `acceptance-tests` module so `docker compose up --build` can read the parent POM.
 - Checkout keeps one `Idempotency-Key` in `sessionStorage` (`shop.checkoutAttempt`) until the cart or payment token changes, and drops it only after a successful POST.
 - The order page reads SSE with `fetch` and refetches every 400ms while the status is `PENDING` or `RESERVED`, so `CONFIRMED` appears without waiting for a later event.
+
+## Phase 5 — Ops dashboard (2026-10-15)
+- `/ops` page: live SSE feed (`GET /api/stream/events`), stock table, order-status and DLT counters, a 0–100 failure-rate slider, and a flash-sale result panel. Ops is linked from the site header. `/api/admin` is rewritten to order-service.
+- payment-service `GET`/`PUT /admin/failure-rate` with `{ "percent" }`. `PaymentFailureRate` is an `AtomicInteger` seeded from `PAYMENT_FAILURE_RATE` (default 0). `PaymentGateway.charge` reads it on every call. Out of range is RFC 7807 400. Token `fail` still declines at 0%.
+- order-service forwards `GET`/`PUT /api/admin/failure-rate` to `PAYMENT_SERVICE_URL`. `POST /api/admin/flash-sale` resets one SKU to stock 1 (`PUT /internal/skus/{sku}/stock`), drops `stock:{sku}`, then places N orders through `OrderApplicationService.createOrder` (outbox, not a direct Kafka publish) and waits until each order is terminal.
+- Flash-sale JSON is `{ confirmed, cancelled, concurrentOrders, sku, orders[{ orderId, status, cancelReason }] }`. The acceptance harness sets `PAYMENT_FAILURE_RATE`, the name `application.yml` reads.
+- `AcceptanceFlashSaleTest` (profile `acceptance`): N=10 on `LASTITEM` expects 1 `CONFIRMED`, 9 `CANCELLED`, stock 0.

@@ -93,6 +93,7 @@ public final class PlatformTestHarness {
 
         Map<String, String> orderEnv = merge(common, orderExtraEnv);
         orderEnv.put("INVENTORY_SERVICE_URL", "http://localhost:" + inventoryPort);
+        orderEnv.put("PAYMENT_SERVICE_URL", "http://localhost:" + paymentPort);
         Started order = startJar("order-service", orderEnv, ordersJdbcUrl, List.of());
         orderProcess = order.process();
         orderPort = order.port();
@@ -116,6 +117,7 @@ public final class PlatformTestHarness {
         stop(orderProcess);
         Map<String, String> env = merge(baseEnv(postgres.getHost(), postgres.getMappedPort(5432)), extraEnv);
         env.put("INVENTORY_SERVICE_URL", "http://localhost:" + inventoryPort);
+        env.put("PAYMENT_SERVICE_URL", "http://localhost:" + paymentPort);
         Started order = startJar("order-service", env, ordersJdbcUrl, extraArgs);
         orderProcess = order.process();
         orderPort = order.port();
@@ -159,7 +161,7 @@ public final class PlatformTestHarness {
         env.put("KAFKA_BOOTSTRAP_SERVERS", kafkaBootstrapServers());
         env.put("REDIS_HOST", redis.getHost());
         env.put("REDIS_PORT", String.valueOf(redis.getMappedPort(6379)));
-        env.put("PAYMENT_FAILURE_RATE_PERCENT", "0");
+        env.put("PAYMENT_FAILURE_RATE", "0");
         return env;
     }
 
@@ -193,6 +195,9 @@ public final class PlatformTestHarness {
         command.add("--spring.data.redis.port=" + extraEnv.get("REDIS_PORT"));
         if (extraEnv.containsKey("INVENTORY_SERVICE_URL")) {
             command.add("--inventory.base-url=" + extraEnv.get("INVENTORY_SERVICE_URL"));
+        }
+        if (extraEnv.containsKey("PAYMENT_SERVICE_URL")) {
+            command.add("--payment.base-url=" + extraEnv.get("PAYMENT_SERVICE_URL"));
         }
         if (extraEnv.containsKey("OUTBOX_ENABLED")) {
             command.add("--outbox.enabled=" + extraEnv.get("OUTBOX_ENABLED"));

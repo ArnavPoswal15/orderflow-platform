@@ -81,15 +81,39 @@ function parseStored(raw: string | null): CartLine[] {
   }
 }
 
+function subscribeHydration() {
+  return () => {};
+}
+
+function hydratedOnClient() {
+  return true;
+}
+
+function hydratedOnServer() {
+  return false;
+}
+
+export function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeHydration, hydratedOnClient, hydratedOnServer);
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const raw = useSyncExternalStore(subscribeCart, cartSnapshot, serverCartSnapshot);
-  const ready = raw !== SERVER_SNAPSHOT;
-  const lines = useMemo(() => (typeof raw === "string" ? parseStored(raw) : []), [raw]);
+  const hydrated = useHydrated();
+  const ready = hydrated && raw !== SERVER_SNAPSHOT;
+  const lines = useMemo(
+    () => (ready && typeof raw === "string" ? parseStored(raw) : []),
+    [ready, raw],
+  );
 
   const addItem = useCallback((product: ProductView) => {
     if (!Number.isSafeInteger(product.priceCents)) return;
     const current = parseStored(window.localStorage.getItem(STORAGE_KEY));
+    const cap = product.available;
+    if (!Number.isSafeInteger(cap) || cap < 1) return;
     const existing = current.find((line) => line.sku === product.sku);
+    const nextQty = existing ? existing.qty + 1 : 1;
+    if (nextQty > cap) return;
     const next = !existing
       ? [
           ...current,
@@ -101,7 +125,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           },
         ]
       : current.map((line) =>
-          line.sku === product.sku ? { ...line, qty: line.qty + 1 } : line,
+          line.sku === product.sku ? { ...line, qty: nextQty } : line,
         );
     persistLines(next);
   }, []);
