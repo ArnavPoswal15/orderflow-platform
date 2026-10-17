@@ -10,4 +10,4 @@ Rough timing for a live walkthrough. Stack: `docker compose up --build` (shop at
 | **1:45–2:30** | Open **/ops**: live event feed, status counters, stock table. Run flash sale on **LASTITEM** with **N=50**; result panel should show **1 CONFIRMED** and **49 CANCELLED**. |
 | **2:30–3:00** | Optional: mention proof load test (`k6 run loadtest/orders.js`) and paste results into `docs/benchmarks.md`. Optional ELK: `docker compose --profile elk up` and Kibana trace by `orderId` (see `observability/README.md`). |
 
-Screenshots: capture paths listed in [docs/assets/README.md](./assets/README.md) for the README.
+Screenshots for the README live under `docs/assets/`; recapture steps: [docs/assets/README.md](./assets/README.md).

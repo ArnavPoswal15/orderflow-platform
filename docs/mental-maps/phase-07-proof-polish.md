@@ -113,7 +113,7 @@ k6 run loadtest/orders.js
 
 - Prometheus/Grafana scrape service in compose (Actuator `/actuator/prometheus` still manual).
 - Committed benchmark numbers in `docs/benchmarks.md` (intentionally empty until you paste a local run).
-- Binary screenshots under `docs/assets/` (README uses placeholders).
+- Refreshed screenshots only when the UI changes (`docs/assets/*.png`, recapture steps in `docs/assets/README.md`).
 
 ---
 

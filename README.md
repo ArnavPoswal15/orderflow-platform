@@ -174,17 +174,17 @@ Timed walkthrough: [docs/DEMO.md](docs/DEMO.md) (~3 minutes: happy path, `fail` 
 
 ### Screenshots
 
-![Storefront product grid](docs/assets/storefront.svg)
+![Storefront product grid](docs/assets/storefront.png)
 
-![Order timeline SSE](docs/assets/order-timeline.svg)
+![Order timeline SSE](docs/assets/order-timeline.png)
 
-![Ops flash sale result](docs/assets/ops-flash-sale.svg)
+![Ops flash sale result](docs/assets/ops-flash-sale.png)
 
-![Kibana trace by orderId](docs/assets/kibana-trace.svg)
+![Kibana trace by orderId](docs/assets/kibana-trace.png)
 
 ![Kibana order-platform dashboard](docs/assets/kibana-dashboard.png)
 
-Capture instructions: [docs/assets/README.md](docs/assets/README.md).
+To refresh these images: [docs/assets/README.md](docs/assets/README.md).
 
 ## Repository layout
 
@@ -201,7 +201,7 @@ Capture instructions: [docs/assets/README.md](docs/assets/README.md).
 | `observability/` | ELK config, Kibana dashboard export, operator docs |
 | `docs/benchmarks.md` | Paste real k6 output from your runs |
 | `docs/DEMO.md` | 3-minute demo script |
-| `docs/assets/` | Screenshot placeholders for README |
+| `docs/assets/` | README demo screenshots (PNG) and recapture notes |
 | `docs/` | Requirements, architecture, phased build plan |
 | `reference/node-prototype/` | Earlier Node reference (read-only) |
 
