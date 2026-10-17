@@ -182,6 +182,8 @@ Timed walkthrough: [docs/DEMO.md](docs/DEMO.md) (~3 minutes: happy path, `fail` 
 
 ![Kibana trace by orderId](docs/assets/kibana-trace.svg)
 
+![Kibana order-platform dashboard](docs/assets/kibana-dashboard.png)
+
 Capture instructions: [docs/assets/README.md](docs/assets/README.md).
 
 ## Repository layout
