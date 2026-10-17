@@ -166,7 +166,7 @@ Record your machine’s numbers in [docs/benchmarks.md](docs/benchmarks.md) (tem
 
 ## CI
 
-GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on push/PR to `main`: JDK 21 (Temurin), Docker available for Testcontainers, `./mvnw -q verify`. Acceptance tests stay behind `-Pacceptance` (same as local default verify).
+GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on push/PR to `master`: JDK 21 (Temurin), Docker available for Testcontainers, `./mvnw -q verify`. Acceptance tests stay behind `-Pacceptance` (same as local default verify).
 
 ## Demo
 
