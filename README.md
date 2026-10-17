@@ -1,6 +1,6 @@
 # Orderflow Platform
 
-[![CI](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ArnavPoswal15/order-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/ArnavPoswal15/orderflow-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ArnavPoswal15/orderflow-platform/actions?query=branch%3Amaster)
 
 Event-driven order platform for grocery-style orders: **order**, **inventory**, and **payment** services each own a database and coordinate through **Kafka** using a choreographed saga (no central orchestrator). A Next.js storefront in `web/` is the shop UI.
 
