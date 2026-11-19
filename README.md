@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/orderflow-sticker.svg" alt="Orderflow Platform — event-driven order processing illustration" width="440" />
+</p>
+
 # Orderflow Platform
 
 [![CI](https://github.com/ArnavPoswal15/orderflow-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ArnavPoswal15/orderflow-platform/actions?query=branch%3Amaster)
@@ -199,7 +203,7 @@ To refresh these images: [docs/assets/README.md](docs/assets/README.md).
 | `.github/workflows/` | CI (`./mvnw verify`) |
 | `web/` | Next.js storefront (shop, cart, checkout, live order page, `/ops`) |
 | `observability/` | ELK config, Kibana dashboard export, operator docs |
-| `docs/benchmarks.md` | Paste real k6 output from your runs |
+| `docs/benchmarks.md` | Load test results template |
 | `docs/DEMO.md` | 3-minute demo script |
 | `docs/assets/` | README demo screenshots (PNG) and recapture notes |
 | `docs/` | Requirements, architecture, phased build plan |
