@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620" fill="none">
+  <defs>
+    <filter id="shadow" x="20" y="20" width="860" height="580" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="13"/>
+    </filter>
+    <linearGradient id="box" x1="320" y1="270" x2="590" y2="490" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9B978"/><stop offset="1" stop-color="#B9783E"/>
+    </linearGradient>
+    <linearGradient id="flap" x1="350" y1="220" x2="560" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5D6A5"/><stop offset="1" stop-color="#D99A5A"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="260" y1="130" x2="660" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#51301F"/><stop offset="1" stop-color="#24150F"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto">
+      <path d="M1 1L8 5L1 9" stroke="#A66A35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- soft shadow and white die-cut sticker silhouette -->
+  <path d="M145 186Q119 145 160 112Q190 87 235 105Q260 48 322 61Q350 17 400 49Q445 9 493 48Q555 20 594 72Q666 43 696 105Q768 95 778 164Q830 194 793 248Q843 296 797 340Q829 401 777 432Q792 500 724 513Q694 574 626 542Q581 593 524 555Q470 601 421 558Q361 592 322 547Q251 568 225 512Q150 523 143 458Q83 431 112 369Q72 313 119 273Q87 219 145 186Z" fill="#6B4A35" opacity=".18" filter="url(#shadow)"/>
+  <path d="M145 186Q119 145 160 112Q190 87 235 105Q260 48 322 61Q350 17 400 49Q445 9 493 48Q555 20 594 72Q666 43 696 105Q768 95 778 164Q830 194 793 248Q843 296 797 340Q829 401 777 432Q792 500 724 513Q694 574 626 542Q581 593 524 555Q470 601 421 558Q361 592 322 547Q251 568 225 512Q150 523 143 458Q83 431 112 369Q72 313 119 273Q87 219 145 186Z" fill="#FFFEFA" stroke="#E9DCCB" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- motion arcs / event stream -->
+  <path d="M190 235C228 159 315 133 379 160" stroke="#C38A51" stroke-width="5" stroke-linecap="round"/>
+  <path d="M520 126C604 90 700 126 733 195" stroke="#C38A51" stroke-width="5" stroke-linecap="round"/>
+  <path d="M704 425C666 492 581 515 519 485" stroke="#C38A51" stroke-width="5" stroke-linecap="round"/>
+  <path d="M183 415C139 371 144 308 177 274" stroke="#C38A51" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#D9A267" stroke="#8D572F" stroke-width="3">
+    <circle cx="204" cy="190" r="9"/><circle cx="690" cy="166" r="9"/><circle cx="711" cy="390" r="9"/><circle cx="191" cy="454" r="9"/>
+  </g>
+
+  <!-- small event/service cards -->
+  <g stroke="#3C261B" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M170 262L235 238L285 267L220 292Z" fill="#F5E2C5"/>
+    <path d="M170 262V329L220 358V292Z" fill="#DCA66C"/>
+    <path d="M220 292L285 267V334L220 358Z" fill="#C4864E"/>
+    <path d="M616 251L681 228L731 257L666 282Z" fill="#F5E2C5"/>
+    <path d="M616 251V318L666 347V282Z" fill="#DCA66C"/>
+    <path d="M666 282L731 257V324L666 347Z" fill="#C4864E"/>
+  </g>
+  <g stroke="#A66A35" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)">
+    <path d="M285 299C315 277 332 267 361 267"/>
+    <path d="M575 267C595 267 606 273 616 287"/>
+  </g>
+
+  <!-- central parcel -->
+  <g stroke="url(#ink)" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M300 300L446 225L604 302L454 386Z" fill="url(#flap)"/>
+    <path d="M300 300V450L454 535V386Z" fill="#C88A50"/>
+    <path d="M454 386V535L604 449V302Z" fill="url(#box)"/>
+    <path d="M446 225L446 376" stroke="#8B552F" stroke-width="8"/>
+    <path d="M300 300L454 386L604 302" stroke="#70452B" stroke-width="8"/>
+    <path d="M454 386L454 535" stroke="#70452B" stroke-width="8"/>
+  </g>
+  <path d="M411 270L481 306L481 374L411 337Z" fill="#F7E8CF" stroke="#4A2D1D" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M431 294L461 310M431 310L461 326" stroke="#A66A35" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Kafka-like flowing event nodes -->
+  <path d="M350 190C385 151 444 146 484 167C525 189 542 221 557 247" stroke="#A66A35" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 13"/>
+  <g fill="#FFF8EC" stroke="#6B4128" stroke-width="6">
+    <circle cx="353" cy="188" r="16"/><circle cx="420" cy="157" r="16"/><circle cx="488" cy="174" r="16"/><circle cx="536" cy="216" r="16"/>
+  </g>
+  <g fill="#B9783E">
+    <circle cx="353" cy="188" r="5"/><circle cx="420" cy="157" r="5"/><circle cx="488" cy="174" r="5"/><circle cx="536" cy="216" r="5"/>
+  </g>
+
+  <!-- sparkle accents -->
+  <g fill="#E4B879" stroke="#8D572F" stroke-width="3" stroke-linejoin="round">
+    <path d="M345 92Q353 126 382 133Q353 140 345 174Q337 140 308 133Q337 126 345 92Z"/>
+    <path d="M704 315Q710 341 733 347Q710 353 704 379Q698 353 675 347Q698 341 704 315Z"/>
+    <path d="M250 388Q255 408 273 413Q255 418 250 438Q245 418 227 413Q245 408 250 388Z"/>
+  </g>
+  <path d="M390 493C430 518 492 518 536 492" stroke="#A66A35" stroke-width="5" stroke-linecap="round"/>
+</svg>
