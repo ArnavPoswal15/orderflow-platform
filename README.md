@@ -2,7 +2,7 @@
   <img src="docs/assets/orderflow-sticker.svg" alt="Orderflow Platform — event-driven order processing illustration" width="440" />
 </p>
 
-# Orderflow Platform
+<h1 align="center">Order Flow</h1>
 
 [![CI](https://github.com/ArnavPoswal15/orderflow-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ArnavPoswal15/orderflow-platform/actions?query=branch%3Amaster)
 
